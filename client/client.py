@@ -4,18 +4,21 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPalette, QPainter
 from utils import send_data, receive_data
 
-
 class GameWindow(QWidget):
+    FIELD_WIDTH = 600  # Ширина игрового поля
+    FIELD_HEIGHT = 1000  # Высота игрового поля
+
     def __init__(self, client_socket):
         super().__init__()
 
         self.client_socket = client_socket
         self.setWindowTitle("Космический Лэндер — Игра")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 600, 1000)
+        self.setFixedSize(600, 1000)
 
         # Координаты точки
-        self.dot_x = 300
-        self.dot_y = 200
+        self.dot_x = 200
+        self.dot_y = 150
 
         # Размер точки
         self.dot_size = 10
@@ -25,7 +28,7 @@ class GameWindow(QWidget):
         self.velocity_y = 0
 
         # Гравитация
-        self.gravity = 1
+        self.gravity = 0.5
 
         # Таймер для обновления игрового окна
         self.timer = QTimer()
@@ -70,19 +73,24 @@ class GameWindow(QWidget):
         self.dot_x += self.velocity_x
         self.dot_y += self.velocity_y
 
-        # Ограничения по краям окна
-        self.dot_x = max(0, min(self.width() - self.dot_size, self.dot_x))
-        self.dot_y = max(0, min(self.height() - self.dot_size, self.dot_y))
+        # Ограничения по фиксированным границам поля
+        self.dot_x = max(0, min(self.FIELD_WIDTH - self.dot_size, self.dot_x))
+        self.dot_y = max(0, min(self.FIELD_HEIGHT - self.dot_size, self.dot_y))
 
         # Перерисовка окна
         self.update()
 
     def paintEvent(self, event):
-        """Отрисовка игровой точки."""
+        """Отрисовка игровой точки и границ поля."""
         painter = QPainter(self)
-        painter.setBrush(QColor("blue"))
-        painter.drawEllipse(self.dot_x, self.dot_y, self.dot_size, self.dot_size)
 
+        # Рисуем игровое поле
+        painter.setBrush(QColor("white"))
+        painter.drawRect(0, 0, self.FIELD_WIDTH, self.FIELD_HEIGHT)
+
+        # Рисуем точку
+        painter.setBrush(QColor("blue"))
+        painter.drawEllipse(int(self.dot_x), int(self.dot_y), self.dot_size, self.dot_size)
 
 class LobbyWindow(QWidget):
     def __init__(self, client_socket, parent_window):
