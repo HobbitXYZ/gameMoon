@@ -97,6 +97,16 @@ def broadcast_lobby_state(lobby_name):
             except:
                 clients.remove(client)
 
+def broadcast_game_update(request, lobby_name, sender_socket):
+    """Рассылает обновление игры всем клиентам."""
+    with lobby_locks[lobby_name]:
+        clients = lobbies.get(lobby_name, [])
+        for client in clients:
+            try:
+                send_data(client, request)
+            except:
+                clients.remove(client)
+
 def start_server():
     """Запускает сервер."""
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,39 +1,44 @@
 import socket
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QPalette, QPainter
+from PyQt6.QtGui import QColor, QPainter
 from utils import send_data, receive_data
 
 class GameWindow(QWidget):
-    FIELD_WIDTH = 600  # Ширина игрового поля
-    FIELD_HEIGHT = 1000  # Высота игрового поля
+    FIELD_WIDTH = 400
+    FIELD_HEIGHT = 400
 
-    def __init__(self, client_socket):
+    def __init__(self, client_socket, player_color):
         super().__init__()
 
         self.client_socket = client_socket
-        self.setWindowTitle("Космический Лэндер — Игра")
-        self.setGeometry(100, 100, 600, 1000)
-        self.setFixedSize(600, 1000)
+        self.setWindowTitle("Космический Лэндер — Игра с двумя игроками")
+        self.setGeometry(100, 100, self.FIELD_WIDTH, self.FIELD_HEIGHT)
+        self.setFixedSize(self.FIELD_WIDTH, self.FIELD_HEIGHT)
 
-        # Координаты точки
-        self.dot_x = 200
-        self.dot_y = 150
+        # Позиции шариков игроков
+        self.player_positions = {
+            "blue": [100, 200],
+            "red": [300, 200]
+        }
 
-        # Размер точки
-        self.dot_size = 10
-
-        # Скорость по осям
+        # Управление текущего игрока
+        self.current_color = player_color
         self.velocity_x = 0
         self.velocity_y = 0
 
         # Гравитация
         self.gravity = 0.5
 
-        # Таймер для обновления игрового окна
+        # Таймер обновления игры
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_game)
-        self.timer.start(30)  # 30 мс для плавного обновления
+        self.timer.start(30)
+
+        # Таймер прослушивания сервера
+        self.listener = QTimer()
+        self.listener.timeout.connect(self.receive_data_from_server)
+        self.listener.start(30)
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -49,13 +54,6 @@ class GameWindow(QWidget):
         elif key == 'd':
             self.velocity_x = 5
 
-        # Отправка данных серверу
-        try:
-            send_data(self.client_socket, f"move:{self.dot_x},{self.dot_y}")
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Ошибка отправки данных: {e}")
-            self.close()
-
     def keyReleaseEvent(self, event):
         """Остановка движения при отпускании клавиш."""
         key = event.text().lower()
@@ -65,32 +63,57 @@ class GameWindow(QWidget):
             self.velocity_x = 0
 
     def update_game(self):
-        """Обновление позиции точки и перерисовка окна."""
+        """Обновление позиций игроков и отправка данных серверу."""
         # Применение гравитации
         self.velocity_y += self.gravity
 
-        # Обновление координат точки
-        self.dot_x += self.velocity_x
-        self.dot_y += self.velocity_y
+        # Обновление координат текущего игрока
+        self.player_positions[self.current_color][0] += self.velocity_x
+        self.player_positions[self.current_color][1] += self.velocity_y
 
-        # Ограничения по фиксированным границам поля
-        self.dot_x = max(0, min(self.FIELD_WIDTH - self.dot_size, self.dot_x))
-        self.dot_y = max(0, min(self.FIELD_HEIGHT - self.dot_size, self.dot_y))
+        # Ограничения границ поля
+        self.player_positions[self.current_color][0] = max(0, min(self.FIELD_WIDTH - 10, self.player_positions[self.current_color][0]))
+        self.player_positions[self.current_color][1] = max(0, min(self.FIELD_HEIGHT - 10, self.player_positions[self.current_color][1]))
 
-        # Перерисовка окна
+        # Отправка новых позиций серверу
+        try:
+            x, y = self.player_positions[self.current_color]
+            send_data(self.client_socket, f"move:{self.current_color},{x},{y}")
+        except Exception:
+            self.close()
+
         self.update()
 
+    def receive_data_from_server(self):
+        """Получение позиций игроков от сервера."""
+        try:
+            message = receive_data(self.client_socket)
+            if message.startswith("move:"):
+                data = message.split(":")[1].split(",")
+                color = data[0]
+                x, y = int(data[1]), int(data[2])
+                self.player_positions[color] = [x, y]
+        except:
+            pass
+
     def paintEvent(self, event):
-        """Отрисовка игровой точки и границ поля."""
+        """Отрисовка игроков."""
         painter = QPainter(self)
 
         # Рисуем игровое поле
         painter.setBrush(QColor("white"))
         painter.drawRect(0, 0, self.FIELD_WIDTH, self.FIELD_HEIGHT)
 
-        # Рисуем точку
+        # Рисуем синий шарик
         painter.setBrush(QColor("blue"))
-        painter.drawEllipse(int(self.dot_x), int(self.dot_y), self.dot_size, self.dot_size)
+        x, y = self.player_positions["blue"]
+        painter.drawEllipse(int(x), int(y), 10, 10)
+
+        # Рисуем красный шарик
+        painter.setBrush(QColor("red"))
+        x, y = self.player_positions["red"]
+        painter.drawEllipse(int(x), int(y), 10, 10)
+
 
 class LobbyWindow(QWidget):
     def __init__(self, client_socket, parent_window):
@@ -101,71 +124,40 @@ class LobbyWindow(QWidget):
         self.setWindowTitle("Лобби — Космический Лэндер")
         self.setGeometry(200, 200, 300, 200)
 
-        # Создание интерфейса
-        layout = QVBoxLayout()
-
-        self.status_label = QLabel("Ожидание соединения...")
+        self.status_label = QLabel("Подключение к серверу...")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        layout = QVBoxLayout()
         layout.addWidget(self.status_label)
-
-        # Кнопка "Назад"
-        self.back_button = QPushButton("Назад")
-        self.back_button.clicked.connect(self.go_back)
-        layout.addWidget(self.back_button)
-
         self.setLayout(layout)
 
-        # Таймер для обновления статуса
+        # Таймер для запуска игры
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update_status)
-        self.timer.start(1000)  # Обновление каждые 1000 мс
+        self.timer.timeout.connect(self.check_game_start)
+        self.timer.start(500)
 
-    def update_status(self):
-        """Получает статус подключения от сервера и меняет цвет окна."""
+    def check_game_start(self):
+        """Проверяет, готово ли лобби для игры."""
         try:
             send_data(self.client_socket, "status")
             status = receive_data(self.client_socket)
 
             if status == "2":
-                self.status_label.setText("Два пользователя подключены")
-                self.set_background_color("green")
-                self.status_label.setStyleSheet("color: black;")
-                self.start_game()
+                self.status_label.setText("Начало игры!")
+                self.timer.stop()
+                self.start_game("blue")
             elif status == "1":
-                self.status_label.setText("Один пользователь подключен")
-                self.set_background_color("yellow")
-                self.status_label.setStyleSheet("color: black;")
+                self.status_label.setText("Ожидаем второго игрока...")
             elif status == "3":
-                self.status_label.setText("Лобби переполнено, наблюдайте за игрой")
-                self.set_background_color("black")
-                self.status_label.setStyleSheet("color: white;")
-            else:
-                self.status_label.setText("Нет соединения")
-                self.set_background_color("red")
-                self.status_label.setStyleSheet("color: black;")
-
+                self.status_label.setText("Вы наблюдатель.")
         except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Соединение потеряно: {e}")
+            QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
             self.close()
 
-    def set_background_color(self, color):
-        """Меняет цвет фона окна."""
-        palette = self.palette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(color))
-        self.setPalette(palette)
-
-    def go_back(self):
-        """Закрывает текущее окно и возвращает к выбору лобби."""
-        self.timer.stop()  # Останавливаем таймер
-        self.client_socket.close()  # Закрываем соединение с сервером
+    def start_game(self, color):
+        """Запускает игровое окно."""
         self.close()
-        self.parent_window.show()
-
-    def start_game(self):
-        """Запускает игровое окно и закрывает лобби."""
-        self.timer.stop()
-        self.close()
-        self.game_window = GameWindow(self.client_socket)
+        self.game_window = GameWindow(self.client_socket, color)
         self.game_window.show()
 
 
@@ -188,10 +180,6 @@ class SpaceLanderClient(QWidget):
             button.clicked.connect(lambda checked, i=i: self.connect_to_lobby(i))
             layout.addWidget(button)
 
-        self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status_label)
-
         self.setLayout(layout)
 
     def connect_to_lobby(self, lobby_number):
@@ -204,7 +192,6 @@ class SpaceLanderClient(QWidget):
             send_data(self.client_socket, str(lobby_number))
             response = receive_data(self.client_socket)
 
-            self.status_label.setText(response)
             self.hide()
 
             # Открытие окна лобби
@@ -213,7 +200,6 @@ class SpaceLanderClient(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка подключения: {e}")
-
 
 if __name__ == "__main__":
     app = QApplication([])
