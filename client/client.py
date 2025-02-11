@@ -121,6 +121,7 @@ class LobbyWindow(QWidget):
 
         self.client_socket = client_socket
         self.parent_window = parent_window
+        self.player_color = None  # Изначально цвет не задан
         self.setWindowTitle("Лобби — Космический Лэндер")
         self.setGeometry(200, 200, 300, 200)
 
@@ -136,16 +137,21 @@ class LobbyWindow(QWidget):
         self.timer.timeout.connect(self.check_game_start)
         self.timer.start(500)
 
+
     def check_game_start(self):
         """Проверяет, готово ли лобби для игры."""
         try:
+            if not self.player_color:  # Получаем цвет только один раз
+                self.player_color = receive_data(self.client_socket)
+                print(f"Цвет игрока: {self.player_color}")
+
             send_data(self.client_socket, "status")
             status = receive_data(self.client_socket)
 
             if status == "2":
                 self.status_label.setText("Начало игры!")
                 self.timer.stop()
-                self.start_game("blue")
+                self.start_game(self.player_color)
             elif status == "1":
                 self.status_label.setText("Ожидаем второго игрока...")
             elif status == "3":

@@ -23,7 +23,11 @@ def handle_client(client_socket, address):
                     send_data(client_socket, "3")  # Черный индикатор, лобби переполнено
                     return
 
-                lobbies[lobby_name].append(client_socket)
+                # Назначаем цвет игроку
+                color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
+                lobbies[lobby_name].append((client_socket, color))
+                send_data(client_socket, color)
+
             send_data(client_socket, f"Вы подключились к {lobby_name}")
             broadcast_lobby_state(lobby_name)
 
@@ -53,8 +57,8 @@ def handle_client(client_socket, address):
 def clean_up_client(client_socket, lobby_name):
     """Очистка состояния клиента и лобби."""
     with lobby_locks[lobby_name]:
-        if client_socket in lobbies[lobby_name]:
-            lobbies[lobby_name].remove(client_socket)
+        # Оставляем только тех клиентов, которые не совпадают с удаляемым
+        lobbies[lobby_name] = [(sock, color) for sock, color in lobbies[lobby_name] if sock != client_socket]
     broadcast_lobby_state(lobby_name)
     client_socket.close()
 
@@ -62,12 +66,12 @@ def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
     with lobby_locks[lobby_name]:
         clients = lobbies.get(lobby_name, [])
-        for client in clients:
+        for client, color in clients:
             if client != sender_socket:
                 try:
                     send_data(client, request)
                 except:
-                    clients.remove(client)
+                    clients.remove((client, color))
 
 def send_lobby_status(client_socket, lobby_name):
     """Отправляет статус лобби клиенту."""
@@ -76,7 +80,7 @@ def send_lobby_status(client_socket, lobby_name):
         num_clients = len(clients)
 
     if num_clients == 3:
-        if client_socket == clients[2]:  # Проверка: это третий клиент
+        if any(client == client_socket for client, color in clients if color == "observer"):
             send_data(client_socket, "3")  # Черный индикатор
         else:
             send_data(client_socket, "2")  # Зеленый индикатор
@@ -91,21 +95,11 @@ def broadcast_lobby_state(lobby_name):
     """Уведомляет всех игроков в лобби о текущем количестве игроков."""
     with lobby_locks[lobby_name]:
         clients = lobbies.get(lobby_name, [])
-        for client in clients:
+        for client, color in clients:
             try:
                 send_data(client, f"Вы в лобби '{lobby_name}' с {len(clients)} игроками.")
             except:
-                clients.remove(client)
-
-def broadcast_game_update(request, lobby_name, sender_socket):
-    """Рассылает обновление игры всем клиентам."""
-    with lobby_locks[lobby_name]:
-        clients = lobbies.get(lobby_name, [])
-        for client in clients:
-            try:
-                send_data(client, request)
-            except:
-                clients.remove(client)
+                clients.remove((client, color))
 
 def start_server():
     """Запускает сервер."""
