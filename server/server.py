@@ -18,12 +18,15 @@ def handle_client(client_socket, address):
 
         if lobby_name in lobbies:
             with lobby_locks[lobby_name]:
-                if len(lobbies[lobby_name]) >= 3:
-                    send_data(client_socket, "full")
-                    send_data(client_socket, "3")  # Черный индикатор, лобби переполнено
+                count = 0
+                # Проверка переполненности лобби
+                if len(lobbies[lobby_name]) >= 2:
+                    print(count=count+1)
+                    send_data(client_socket, "3")  # Лобби переполнено
                     return
 
-                # Назначаем цвет игроку
+                # Назначение цвета
+                print(count)
                 color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
                 lobbies[lobby_name].append((client_socket, color))
                 send_data(client_socket, color)
@@ -67,7 +70,7 @@ def broadcast_game_update(request, lobby_name, sender_socket):
     with lobby_locks[lobby_name]:
         clients = lobbies.get(lobby_name, [])
         for client, color in clients:
-            if client != sender_socket:
+            if client != sender_socket and color != "observer":  # Не отправляем наблюдателям
                 try:
                     send_data(client, request)
                 except:
@@ -79,7 +82,7 @@ def send_lobby_status(client_socket, lobby_name):
         clients = lobbies[lobby_name]
         num_clients = len(clients)
 
-    if num_clients == 3:
+    if num_clients >= 3:
         if any(client == client_socket for client, color in clients if color == "observer"):
             send_data(client_socket, "3")  # Черный индикатор
         else:

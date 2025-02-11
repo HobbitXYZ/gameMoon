@@ -155,7 +155,11 @@ class LobbyWindow(QWidget):
             elif status == "1":
                 self.status_label.setText("Ожидаем второго игрока...")
             elif status == "3":
-                self.status_label.setText("Вы наблюдатель.")
+                QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Вернём вас к выбору лобби.")
+                self.client_socket.close()
+                self.timer.stop()
+                self.close()
+                self.parent_window.show()
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
             self.close()
