@@ -34,8 +34,10 @@ def handle_client(client_socket, address):
                         break
                     if request.startswith("status"):
                         send_lobby_status(client_socket, lobby_name)
+                    elif request.startswith("move:"):
+                        broadcast_game_update(request, lobby_name, client_socket)
                     else:
-                        handle_game_update(request, lobby_name, client_socket)
+                        print(f"Неизвестный запрос от клиента: {request}")
                 except (ConnectionResetError, ConnectionAbortedError):
                     print(f"Соединение с клиентом {address} потеряно.")
                     break
@@ -56,10 +58,16 @@ def clean_up_client(client_socket, lobby_name):
     broadcast_lobby_state(lobby_name)
     client_socket.close()
 
-def handle_game_update(request, lobby_name, client_socket):
-    """Обрабатывает игровые обновления от клиентов."""
-    print(f"Получено обновление от клиента: {request}")
-    # Здесь можно добавить обработку положения ракеты и других событий
+def broadcast_game_update(request, lobby_name, sender_socket):
+    """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
+    with lobby_locks[lobby_name]:
+        clients = lobbies.get(lobby_name, [])
+        for client in clients:
+            if client != sender_socket:
+                try:
+                    send_data(client, request)
+                except:
+                    clients.remove(client)
 
 def send_lobby_status(client_socket, lobby_name):
     """Отправляет статус лобби клиенту."""

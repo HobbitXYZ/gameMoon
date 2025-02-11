@@ -1,8 +1,87 @@
 import socket
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor, QPalette, QPainter
 from utils import send_data, receive_data
+
+
+class GameWindow(QWidget):
+    def __init__(self, client_socket):
+        super().__init__()
+
+        self.client_socket = client_socket
+        self.setWindowTitle("Космический Лэндер — Игра")
+        self.setGeometry(100, 100, 600, 400)
+
+        # Координаты точки
+        self.dot_x = 300
+        self.dot_y = 200
+
+        # Размер точки
+        self.dot_size = 10
+
+        # Скорость по осям
+        self.velocity_x = 0
+        self.velocity_y = 0
+
+        # Гравитация
+        self.gravity = 1
+
+        # Таймер для обновления игрового окна
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_game)
+        self.timer.start(30)  # 30 мс для плавного обновления
+
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def keyPressEvent(self, event):
+        """Обработка нажатий клавиш."""
+        key = event.text().lower()
+        if key == 'w':
+            self.velocity_y = -5
+        elif key == 's':
+            self.velocity_y = 5
+        elif key == 'a':
+            self.velocity_x = -5
+        elif key == 'd':
+            self.velocity_x = 5
+
+        # Отправка данных серверу
+        try:
+            send_data(self.client_socket, f"move:{self.dot_x},{self.dot_y}")
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка отправки данных: {e}")
+            self.close()
+
+    def keyReleaseEvent(self, event):
+        """Остановка движения при отпускании клавиш."""
+        key = event.text().lower()
+        if key in {'w', 's'}:
+            self.velocity_y = 0
+        if key in {'a', 'd'}:
+            self.velocity_x = 0
+
+    def update_game(self):
+        """Обновление позиции точки и перерисовка окна."""
+        # Применение гравитации
+        self.velocity_y += self.gravity
+
+        # Обновление координат точки
+        self.dot_x += self.velocity_x
+        self.dot_y += self.velocity_y
+
+        # Ограничения по краям окна
+        self.dot_x = max(0, min(self.width() - self.dot_size, self.dot_x))
+        self.dot_y = max(0, min(self.height() - self.dot_size, self.dot_y))
+
+        # Перерисовка окна
+        self.update()
+
+    def paintEvent(self, event):
+        """Отрисовка игровой точки."""
+        painter = QPainter(self)
+        painter.setBrush(QColor("blue"))
+        painter.drawEllipse(self.dot_x, self.dot_y, self.dot_size, self.dot_size)
 
 
 class LobbyWindow(QWidget):
@@ -43,6 +122,7 @@ class LobbyWindow(QWidget):
                 self.status_label.setText("Два пользователя подключены")
                 self.set_background_color("green")
                 self.status_label.setStyleSheet("color: black;")
+                self.start_game()
             elif status == "1":
                 self.status_label.setText("Один пользователь подключен")
                 self.set_background_color("yellow")
@@ -72,6 +152,13 @@ class LobbyWindow(QWidget):
         self.client_socket.close()  # Закрываем соединение с сервером
         self.close()
         self.parent_window.show()
+
+    def start_game(self):
+        """Запускает игровое окно и закрывает лобби."""
+        self.timer.stop()
+        self.close()
+        self.game_window = GameWindow(self.client_socket)
+        self.game_window.show()
 
 
 class SpaceLanderClient(QWidget):
