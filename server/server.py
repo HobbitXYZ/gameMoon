@@ -1,0 +1,105 @@
+import socket
+import threading
+from utils import send_data, receive_data
+
+# Предустановленные лобби и блокировки для каждого лобби
+lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
+lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
+
+def handle_client(client_socket, address):
+    """Обрабатывает подключение клиента."""
+    lobby_name = None
+    try:
+        send_data(client_socket, f"Доступные лобби: {', '.join(lobbies.keys())}")
+        send_data(client_socket, "Введите номер лобби (например, '1' для Lobby 1):")
+
+        lobby_choice = receive_data(client_socket)
+        lobby_name = f"Lobby {lobby_choice}"
+
+        if lobby_name in lobbies:
+            with lobby_locks[lobby_name]:
+                if len(lobbies[lobby_name]) >= 3:
+                    send_data(client_socket, "full")
+                    send_data(client_socket, "3")  # Черный индикатор, лобби переполнено
+                    return
+
+                lobbies[lobby_name].append(client_socket)
+            send_data(client_socket, f"Вы подключились к {lobby_name}")
+            broadcast_lobby_state(lobby_name)
+
+            while True:
+                try:
+                    request = receive_data(client_socket)
+                    if request == "":
+                        break
+                    if request.startswith("status"):
+                        send_lobby_status(client_socket, lobby_name)
+                    else:
+                        handle_game_update(request, lobby_name, client_socket)
+                except (ConnectionResetError, ConnectionAbortedError):
+                    print(f"Соединение с клиентом {address} потеряно.")
+                    break
+        else:
+            send_data(client_socket, "Неверный выбор лобби. Соединение закрыто.")
+
+    except Exception as e:
+        print(f"Ошибка: {e}")
+    finally:
+        if lobby_name:
+            clean_up_client(client_socket, lobby_name)
+
+def clean_up_client(client_socket, lobby_name):
+    """Очистка состояния клиента и лобби."""
+    with lobby_locks[lobby_name]:
+        if client_socket in lobbies[lobby_name]:
+            lobbies[lobby_name].remove(client_socket)
+    broadcast_lobby_state(lobby_name)
+    client_socket.close()
+
+def handle_game_update(request, lobby_name, client_socket):
+    """Обрабатывает игровые обновления от клиентов."""
+    print(f"Получено обновление от клиента: {request}")
+    # Здесь можно добавить обработку положения ракеты и других событий
+
+def send_lobby_status(client_socket, lobby_name):
+    """Отправляет статус лобби клиенту."""
+    with lobby_locks[lobby_name]:
+        clients = lobbies[lobby_name]
+        num_clients = len(clients)
+
+    if num_clients == 3:
+        if client_socket == clients[2]:  # Проверка: это третий клиент
+            send_data(client_socket, "3")  # Черный индикатор
+        else:
+            send_data(client_socket, "2")  # Зеленый индикатор
+    elif num_clients == 2:
+        send_data(client_socket, "2")  # Зеленый индикатор
+    elif num_clients == 1:
+        send_data(client_socket, "1")  # Желтый индикатор
+    else:
+        send_data(client_socket, "0")  # Красный индикатор
+        
+def broadcast_lobby_state(lobby_name):
+    """Уведомляет всех игроков в лобби о текущем количестве игроков."""
+    with lobby_locks[lobby_name]:
+        clients = lobbies.get(lobby_name, [])
+        for client in clients:
+            try:
+                send_data(client, f"Вы в лобби '{lobby_name}' с {len(clients)} игроками.")
+            except:
+                clients.remove(client)
+
+def start_server():
+    """Запускает сервер."""
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('0.0.0.0', 5555))
+    server_socket.listen(10)
+    print("Сервер запущен и ожидает подключения...")
+
+    while True:
+        client_socket, addr = server_socket.accept()
+        print(f"Подключение от {addr}")
+        threading.Thread(target=handle_client, args=(client_socket, addr)).start()
+
+if __name__ == "__main__":
+    start_server()
