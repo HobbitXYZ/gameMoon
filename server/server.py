@@ -18,15 +18,12 @@ def handle_client(client_socket, address):
 
         if lobby_name in lobbies:
             with lobby_locks[lobby_name]:
-                count = 0
                 # Проверка переполненности лобби
                 if len(lobbies[lobby_name]) >= 2:
-                    print(count=count+1)
                     send_data(client_socket, "3")  # Лобби переполнено
                     return
 
                 # Назначение цвета
-                print(count)
                 color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
                 lobbies[lobby_name].append((client_socket, color))
                 send_data(client_socket, color)
