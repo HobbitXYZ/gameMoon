@@ -164,11 +164,6 @@ class LobbyWindow(QWidget):
                 self.start_game(self.player_color)
             elif status == "1":
                 self.status_label.setText("Ожидаем второго игрока...")
-            elif status == "full":
-                QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
-                self.timer.stop()
-                self.parent_window.show()
-                return  # ВАЖНО: Остановить дальнейшее выполнение
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
