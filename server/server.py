@@ -20,8 +20,18 @@ def handle_client(client_socket, address):
             with lobby_locks[lobby_name]:
                 # Проверка переполненности лобби
                 if len(lobbies[lobby_name]) >= 2:
-                    send_data(client_socket, "3")  # Лобби переполнено
-                    return
+                    send_data(client_socket, "full")  # Лобби переполнено
+                    print("Лобби переполнено, перенаправляем игрока")
+                    
+                    # Очистка буфера, чтобы клиент не отправлял "status" перед повторным выбором лобби
+                    try:
+                        client_socket.settimeout(0.5)
+                        while receive_data(client_socket):  # Пытаемся считать оставшиеся данные
+                            pass
+                    except:
+                        pass  # Игнорируем ошибки тайм-аута
+
+                    return handle_client(client_socket, address)  # Перезапускаем выбор лобби
 
                 # Назначение цвета
                 color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
@@ -35,6 +45,7 @@ def handle_client(client_socket, address):
                 try:
                     request = receive_data(client_socket)
                     if request == "":
+                        print(1)
                         break
                     if request.startswith("status"):
                         send_lobby_status(client_socket, lobby_name)
@@ -46,7 +57,7 @@ def handle_client(client_socket, address):
                     print(f"Соединение с клиентом {address} потеряно.")
                     break
         else:
-            send_data(client_socket, "Неверный выбор лобби. Соединение закрыто.")
+            send_data(client_socket, "full.")
 
     except Exception as e:
         print(f"Ошибка: {e}")
@@ -81,7 +92,7 @@ def send_lobby_status(client_socket, lobby_name):
 
     if num_clients >= 3:
         if any(client == client_socket for client, color in clients if color == "observer"):
-            send_data(client_socket, "3")  # Черный индикатор
+            send_data(client_socket, "full")  # Черный индикатор
         else:
             send_data(client_socket, "2")  # Зеленый индикатор
     elif num_clients == 2:

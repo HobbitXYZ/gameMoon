@@ -145,8 +145,18 @@ class LobbyWindow(QWidget):
                 self.player_color = receive_data(self.client_socket)
                 print(f"Цвет игрока: {self.player_color}")
 
+                # Если цвет "full", сразу возвращаемся к выбору лобби
+                if self.player_color == "full":
+                    QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
+                    self.close()
+                    self.timer.stop()
+                    self.parent_window.show()
+                    return  # ВАЖНО: Прерываем выполнение функции
+
             send_data(self.client_socket, "status")
+            print("Отправка запроса статуса лобби: status")  # Логируем отправку
             status = receive_data(self.client_socket)
+            print(f"Получен статус лобби: {status}")  # Логируем полученный статус
 
             if status == "2":
                 self.status_label.setText("Начало игры!")
@@ -154,12 +164,12 @@ class LobbyWindow(QWidget):
                 self.start_game(self.player_color)
             elif status == "1":
                 self.status_label.setText("Ожидаем второго игрока...")
-            elif status == "3":
-                QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Вернём вас к выбору лобби.")
-                self.client_socket.close()
+            elif status == "full":
+                QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
                 self.timer.stop()
-                self.close()
                 self.parent_window.show()
+                return  # ВАЖНО: Остановить дальнейшее выполнение
+
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
             self.close()
