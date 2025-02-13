@@ -175,7 +175,6 @@ class LobbyWindow(QWidget):
         self.game_window = GameWindow(self.client_socket, color)
         self.game_window.show()
 
-
 class SpaceLanderClient(QWidget):
     def __init__(self):
         super().__init__()

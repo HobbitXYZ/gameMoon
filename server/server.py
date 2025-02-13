@@ -61,17 +61,6 @@ def handle_client(client_socket, address):
 
     except Exception as e:
         print(f"Ошибка: {e}")
-    finally:
-        if lobby_name:
-            clean_up_client(client_socket, lobby_name)
-
-def clean_up_client(client_socket, lobby_name):
-    """Очистка состояния клиента и лобби."""
-    with lobby_locks[lobby_name]:
-        # Оставляем только тех клиентов, которые не совпадают с удаляемым
-        lobbies[lobby_name] = [(sock, color) for sock, color in lobbies[lobby_name] if sock != client_socket]
-    broadcast_lobby_state(lobby_name)
-    client_socket.close()
 
 def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
@@ -90,12 +79,7 @@ def send_lobby_status(client_socket, lobby_name):
         clients = lobbies[lobby_name]
         num_clients = len(clients)
 
-    if num_clients >= 3:
-        if any(client == client_socket for client, color in clients if color == "observer"):
-            send_data(client_socket, "full")  # Черный индикатор
-        else:
-            send_data(client_socket, "2")  # Зеленый индикатор
-    elif num_clients == 2:
+    if num_clients == 2:
         send_data(client_socket, "2")  # Зеленый индикатор
     elif num_clients == 1:
         send_data(client_socket, "1")  # Желтый индикатор
