@@ -28,7 +28,7 @@ class GameWindow(QWidget):
         self.velocity_y = 0
 
         # Гравитация
-        self.gravity = 0.5
+        self.gravity = 0.2
 
         # Таймер обновления игры
         self.timer = QTimer()
@@ -78,7 +78,7 @@ class GameWindow(QWidget):
         # Отправка новых позиций серверу
         try:
             x, y = self.player_positions[self.current_color]
-            send_data(self.client_socket, f"move:{self.current_color},{x},{y}")
+            send_data(self.client_socket, f"move:{self.current_color}:{x}:{y}")
         except Exception:
             self.close()
 
@@ -89,12 +89,16 @@ class GameWindow(QWidget):
         try:
             message = receive_data(self.client_socket)
             if message.startswith("move:"):
-                data = message.split(":")[1].split(",")
-                color = data[0]
-                x, y = int(data[1]), int(data[2])
-                self.player_positions[color] = [x, y]
-        except:
-            pass
+                print(f"Получено сообщение: {message}")  # Логирование
+
+                parts = message.split(":")
+                if len(parts) == 4:  # move:цвет:x:y
+                    color, x, y = parts[1], float(parts[2]), float(parts[3])
+                    print(f"Обновление позиции {color}: {x}, {y}")  # Лог
+                    self.player_positions[color] = [x, y]
+                    self.update()
+        except Exception as e:
+            print(f"Ошибка получения данных: {e}")
 
     def paintEvent(self, event):
         """Отрисовка игроков."""
