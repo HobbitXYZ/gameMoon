@@ -67,18 +67,27 @@ class GameWindow(QWidget):
         # Применение гравитации
         self.velocity_y += self.gravity
 
-        # Обновление координат текущего игрока
-        self.player_positions[self.current_color][0] += self.velocity_x
-        self.player_positions[self.current_color][1] += self.velocity_y
+        # Вычисляем новые координаты
+        new_x = self.player_positions[self.current_color][0] + self.velocity_x
+        new_y = self.player_positions[self.current_color][1] + self.velocity_y
 
-        # Ограничения границ поля
-        self.player_positions[self.current_color][0] = max(0, min(self.FIELD_WIDTH - 10, self.player_positions[self.current_color][0]))
-        self.player_positions[self.current_color][1] = max(0, min(self.FIELD_HEIGHT - 10, self.player_positions[self.current_color][1]))
+        # Ограничение по вертикальной границе в центре
+        middle_x = self.FIELD_WIDTH // 2
+        if self.current_color == "blue" and new_x + 10 > middle_x:
+            new_x = middle_x - 10
+        elif self.current_color == "red" and new_x < middle_x:
+            new_x = middle_x
+
+        # Ограничение по боковым границам
+        new_x = max(4, min(self.FIELD_WIDTH - 14, new_x))  # 4 - левая граница, 14 - правая
+        new_y = max(0, min(self.FIELD_HEIGHT - 10, new_y))  # Верх и низ
+
+        # Обновляем позицию
+        self.player_positions[self.current_color] = [new_x, new_y]
 
         # Отправка новых позиций серверу
         try:
-            x, y = self.player_positions[self.current_color]
-            send_data(self.client_socket, f"move:{self.current_color}:{x}:{y}")
+            send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}")
         except Exception:
             self.close()
 
@@ -101,12 +110,23 @@ class GameWindow(QWidget):
             print(f"Ошибка получения данных: {e}")
 
     def paintEvent(self, event):
-        """Отрисовка игроков."""
+        """Отрисовка игроков и границ."""
         painter = QPainter(self)
 
         # Рисуем игровое поле
         painter.setBrush(QColor("white"))
         painter.drawRect(0, 0, self.FIELD_WIDTH, self.FIELD_HEIGHT)
+
+        # Рисуем границы
+        painter.setBrush(QColor("black"))
+
+        # Вертикальная граница посередине
+        middle_x = self.FIELD_WIDTH // 2
+        painter.drawRect(middle_x - 2, 0, 4, self.FIELD_HEIGHT)  # Толщина 4 пикселя
+
+        # Левые и правые границы
+        painter.drawRect(0, 0, 4, self.FIELD_HEIGHT)  # Левая
+        painter.drawRect(self.FIELD_WIDTH - 4, 0, 4, self.FIELD_HEIGHT)  # Правая
 
         # Рисуем синий шарик
         painter.setBrush(QColor("blue"))

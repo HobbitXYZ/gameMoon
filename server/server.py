@@ -61,6 +61,17 @@ def handle_client(client_socket, address):
 
     except Exception as e:
         print(f"Ошибка: {e}")
+    finally:
+        if lobby_name:
+            clean_up_client(client_socket, lobby_name)
+
+def clean_up_client(client_socket, lobby_name):
+    """Очистка состояния клиента и лобби."""
+    with lobby_locks[lobby_name]:
+        if client_socket in lobbies[lobby_name]:
+            lobbies[lobby_name].remove(client_socket)
+    broadcast_lobby_state(lobby_name)
+    client_socket.close()
 
 def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
