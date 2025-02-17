@@ -159,7 +159,7 @@ class GameWindow(QWidget):
 
         # Отправка новых позиций серверу
         try:
-            send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}")
+            send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}")
         except Exception:
             self.close()
 
@@ -171,9 +171,10 @@ class GameWindow(QWidget):
             message = receive_data(self.client_socket)
             if message.startswith("move:"):
                 parts = message.split(":")
-                if len(parts) == 4:  # move:цвет:x:y
-                    color, x, y = parts[1], float(parts[2]), float(parts[3])
+                if len(parts) == 5:  # move:цвет:x:y:угол
+                    color, x, y, angle = parts[1], float(parts[2]), float(parts[3]), float(parts[4])
                     self.player_positions[color] = [x, y]  # Обновляем позицию другого игрока
+                    self.player_angles[color] = angle  # Обновляем угол наклона
                     self.update()
         except Exception as e:
             print(f"Ошибка получения данных: {e}")
@@ -183,9 +184,10 @@ class GameWindow(QWidget):
         try:
             # Получаем текущие координаты ракеты из player_positions
             new_x, new_y = self.player_positions[self.current_color]  # Теперь используем этот атрибут
+            angle = self.player_angles[self.current_color]  # Получаем угол наклона ракеты
             
             # Формируем сообщение для отправки
-            message = f"move:{self.current_color}:{new_x}:{new_y}"
+            message = f"move:{self.current_color}:{new_x}:{new_y}:{angle}"
             
             # Отправляем данные серверу
             send_data(self.client_socket, message)
