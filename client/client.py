@@ -37,11 +37,11 @@ class GameWindow(QWidget):
         self.velocity_x = 0
         self.velocity_y = 0
         self.player_angles = {
-            "blue": 0,  # Угол для синего игрока
-            "red": 0    # Угол для красного игрока
+            "blue": 1,  # Угол для синего игрока
+            "red": 1    # Угол для красного игрока
         }
         # Гравитация ТУТ
-        self.gravity = 1
+        self.gravity = 0.07
 
         # Таймер обновления игры
         self.timer = QTimer()
@@ -82,11 +82,7 @@ class GameWindow(QWidget):
         # Рассчитываем угол наклона ракеты в радианах
         angle_rad = math.radians(self.player_angles[self.current_color])
 
-        # Гравитация всегда тянет вниз
-        gravity_y = self.gravity  # Просто используем гравитацию, которая действует вниз
-
-        # Изначальная скорость (при отсутствии воздействия на скорость)
-        self.velocity_y = gravity_y  # Добавляем воздействие гравитации по вертикали
+        self.velocity_y += self.gravity  # Гравитация всегда действует
 
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:

@@ -90,12 +90,12 @@ def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
     with lobby_locks[lobby_name]:
         clients = lobbies.get(lobby_name, [])
-        print(f"Рассылка движения: {request} в {lobby_name} для {len(clients)} игроков")  # Логирование
+        #print(f"Рассылка движения: {request} в {lobby_name} для {len(clients)} игроков")  # Логирование
 
         for client, color in clients:
             if client != sender_socket and color != "observer":
                 try:
-                    print(f"Отправка {request} клиенту {color}")  # Лог
+                    #print(f"Отправка {request} клиенту {color}")  # Лог
                     send_data(client, request)
                 except Exception as e:
                     print(f"Ошибка отправки: {e}")
