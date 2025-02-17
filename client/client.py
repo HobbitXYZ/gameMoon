@@ -20,25 +20,16 @@ class GameWindow(QWidget):
         self.setFixedSize(self.FIELD_WIDTH, self.FIELD_HEIGHT)
 
         # Позиции игроков
-        self.player_positions = {
-            "blue": [200, 50],
-            "red": [600, 50]
-        }
+        self.player_positions = {"blue": [200, 50], "red": [600, 50]}
 
         # Координаты платформ
-        self.platforms = {
-            "blue": (platform_start, platform_end),
-            "red": (platform_start, platform_end)
-        }
+        self.platforms = {"blue": (platform_start, platform_end),"red": (platform_start, platform_end)}
 
         # Управление текущего игрока
         self.current_color = player_color
         self.velocity_x = 0
         self.velocity_y = 0
-        self.player_angles = {
-            "blue": 1,  # Угол для синего игрока
-            "red": 1    # Угол для красного игрока
-        }
+        self.player_angles = {"blue": 1,"red": 1}
         # Гравитация ТУТ
         self.gravity = 0.07
 
@@ -55,10 +46,7 @@ class GameWindow(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # Словарь для отслеживания нажатых клавиш
-        self.pressed_keys = {
-            "A": False,
-            "D": False
-        }
+        self.pressed_keys = {"A": False,"D": False}
 
          # **Таймер посадки**
         self.landing_timer = QElapsedTimer()
