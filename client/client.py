@@ -82,9 +82,8 @@ class GameWindow(QWidget):
         # Рассчитываем угол наклона ракеты в радианах
         angle_rad = math.radians(self.player_angles[self.current_color])
 
-        # Гравитация всегда тянет вниз, но действует на верхнюю точку (нос ракеты)
-        gravity_x = math.sin(angle_rad) * self.gravity  # Влияние гравитации по горизонтали
-        gravity_y = math.cos(angle_rad) * self.gravity  # Влияние гравитации по вертикали
+        # Гравитация всегда тянет вниз
+        gravity_y = self.gravity  # Просто используем гравитацию, которая действует вниз
 
         # Изначальная скорость (при отсутствии воздействия на скорость)
         self.velocity_y = gravity_y  # Добавляем воздействие гравитации по вертикали
@@ -97,41 +96,28 @@ class GameWindow(QWidget):
         # Двигатели ракеты не дают гравитации полностью направлять её вниз
         if self.pressed_keys["A"] and self.pressed_keys["D"]:
             # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
-            angle_rad = math.radians(self.player_angles[self.current_color])  # Преобразуем угол в радианы
-
-            # Скорость движения вверх в зависимости от угла наклона ракеты
-            # Используем cos для вертикальной компоненты и sin для горизонтальной
             self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
             self.velocity_y = math.cos(angle_rad) * -2  # Вертикальное движение вверх, против гравитации
 
         # Обработка движения с помощью клавиш:
         if self.pressed_keys["A"] and not self.pressed_keys["D"]:
-            # Поворот по часовой стрелке (если нажата только клавиша A)
-            print(self.player_angles[self.current_color])
             self.player_angles[self.current_color] -= 3  # Поворот по часовой стрелке
-
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] < -180:
                 self.player_angles[self.current_color] += 360  # Приводим к положительному углу
         elif self.pressed_keys["D"] and not self.pressed_keys["A"]:
-            # Поворот против часовой стрелки (если нажата только клавиша D)
-            print(self.player_angles[self.current_color])
             self.player_angles[self.current_color] += 3  # Поворот против часовой стрелки
-
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] > 180:
                 self.player_angles[self.current_color] -= 360  # Приводим к отрицательному углу
 
         # Рассчитываем новый угол наклона ракеты на основе её движения
-        # Если угол наклона отклоняется от 90°, ракета начнёт вращаться для коррекции
         if abs(self.player_angles[self.current_color]) < 90:
-            # Если угол отклонён влево или вправо, ракета начинает выравниваться
             if self.player_angles[self.current_color] < 0:
                 self.player_angles[self.current_color] -= 1  # Поворот по часовой стрелке
             elif self.player_angles[self.current_color] > 0:
                 self.player_angles[self.current_color] += 1  # Поворот против часовой стрелки
         elif abs(self.player_angles[self.current_color]) >= 90 and abs(self.player_angles[self.current_color]) < 180:
-            # Если угол больше 90°, ракета начинает вращаться в противоположную сторону
             if self.player_angles[self.current_color] < 0:
                 self.player_angles[self.current_color] -= 1  # Поворот против часовой стрелки
             elif self.player_angles[self.current_color] > 0:
