@@ -41,10 +41,10 @@ def handle_client(client_socket, address):
                 # Генерация случайных координат для платформы
                 if color == "blue":
                     platform_start = random.randint(0, 400)
-                    platform_end = platform_start + 50
+                    platform_end = platform_start + 60
                 else:
                     platform_start = random.randint(400, 750)
-                    platform_end = platform_start + 50
+                    platform_end = platform_start + 60
 
                 print(f"[DEBUG] {color} - Координаты платформы: {platform_start}, {platform_end}")
 

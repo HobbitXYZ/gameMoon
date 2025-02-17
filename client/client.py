@@ -9,8 +9,6 @@ from utils import send_data, receive_data
 class GameWindow(QWidget):
     FIELD_WIDTH = 800
     FIELD_HEIGHT = 800
-    PLATFORM_WIDTH = 50
-    PLATFORM_HEIGHT = 20
 
     def __init__(self, client_socket, player_color, platform_start, platform_end):
         super().__init__()
@@ -200,7 +198,7 @@ class GameWindow(QWidget):
         # Рисуем платформы с учетом координат для каждого игрока
         for color, (start_x, end_x) in self.platforms.items():
             painter.setBrush(QColor("purple"))  # Цвет платформы
-            painter.drawRect(start_x, self.FIELD_HEIGHT - 20, end_x - start_x, 10)
+            painter.drawRect(start_x, self.FIELD_HEIGHT - 10, end_x - start_x, 10)
 
         # Рисуем ракеты для обоих игроков
         for color, (x, y) in self.player_positions.items():
