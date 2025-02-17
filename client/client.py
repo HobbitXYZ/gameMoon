@@ -9,9 +9,9 @@ class GameWindow(QWidget):
     FIELD_WIDTH = 800
     FIELD_HEIGHT = 800
     PLATFORM_WIDTH = 50
-    PLATFORM_HEIGHT = 10
+    PLATFORM_HEIGHT = 20
 
-    def __init__(self, client_socket, player_color):
+    def __init__(self, client_socket, player_color, platform_start, platform_end):
         super().__init__()
 
         self.client_socket = client_socket
@@ -23,6 +23,12 @@ class GameWindow(QWidget):
         self.player_positions = {
             "blue": [200, 0],
             "red": [600, 0]
+        }
+
+        # Координаты платформ
+        self.platforms = {
+            "blue": (platform_start, platform_end),
+            "red": (platform_start, platform_end)
         }
 
         # Управление текущего игрока
@@ -129,6 +135,11 @@ class GameWindow(QWidget):
         painter.drawRect(0, 0, 4, self.FIELD_HEIGHT)  # Левая
         painter.drawRect(self.FIELD_WIDTH - 4, 0, 4, self.FIELD_HEIGHT)  # Правая
 
+        # Рисуем платформы с учетом координат для каждого игрока
+        for color, (start_x, end_x) in self.platforms.items():
+            painter.setBrush(QColor("purple"))  # Цвет платформы
+            painter.drawRect(start_x, self.FIELD_HEIGHT - 20, end_x - start_x, 10)
+
         # Рисуем синий шарик
         painter.setBrush(QColor("blue"))
         x, y = self.player_positions["blue"]
@@ -173,6 +184,8 @@ class LobbyWindow(QWidget):
                 # Проверяем, что получили именно кортеж (цвет, платформа старт, платформа конец)
                 if isinstance(received_data, tuple) and len(received_data) == 3:
                     self.player_color, platform_start, platform_end = received_data
+                    self.platform_start = platform_start
+                    self.platform_end = platform_end
                 else:
                     QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
                     self.close()
@@ -210,7 +223,7 @@ class LobbyWindow(QWidget):
     def start_game(self, color):
         """Запускает игровое окно."""
         self.close()
-        self.game_window = GameWindow(self.client_socket, color)
+        self.game_window = GameWindow(self.client_socket, color, self.platform_start, self.platform_end)
         self.game_window.show()
 
 class SpaceLanderClient(QWidget):
