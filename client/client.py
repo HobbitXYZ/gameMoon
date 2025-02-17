@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLa
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPolygonF
 from PyQt6.QtCore import QPointF
+from PyQt6.QtCore import QElapsedTimer
 from utils import send_data, receive_data
 
 class GameWindow(QWidget):
@@ -20,8 +21,8 @@ class GameWindow(QWidget):
 
         # Позиции игроков
         self.player_positions = {
-            "blue": [200, 0],
-            "red": [600, 0]
+            "blue": [200, 50],
+            "red": [600, 50]
         }
 
         # Координаты платформ
@@ -59,6 +60,86 @@ class GameWindow(QWidget):
             "D": False
         }
 
+         # **Таймер посадки**
+        self.landing_timer = QElapsedTimer()
+        self.landing_timer.start()
+
+        self.landed = False  # Флаг успешной посадки
+        self.crashed = False  # Флаг крушения
+    
+    def check_landing(self):
+        """Проверка, приземлилась ли ракета или разбилась."""
+        if self.landed or self.crashed:
+            return  # Если уже есть результат, не проверяем дальше
+
+        x, y = self.player_positions[self.current_color]
+        angle = self.player_angles[self.current_color]
+        platform_start, platform_end = self.platforms[self.current_color]
+
+        # Нижние точки ракеты
+        left_foot = (x, y)
+        right_foot = (x + 20, y)
+
+        # Проверка успешного приземления (обе ноги на платформе и угол < 5°)
+        if (platform_start <= left_foot[0] <= platform_end and
+                platform_start <= right_foot[0] <= platform_end and
+                self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
+                self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT and
+                abs(angle) < 5):
+
+            self.landed = True
+            time_elapsed = self.landing_timer.elapsed() / 1000  # Время в секундах
+            QMessageBox.information(self, "Посадка!", f"Ракета успешно приземлилась!\nВремя: {time_elapsed:.2f} сек.")
+            self.timer.stop()  # Останавливаем игру
+
+        # Размеры ракеты
+        rocket_width = 20
+        rocket_height = 40
+
+        # Координаты центра ракеты
+        x, y = self.player_positions[self.current_color]
+        center_x = x + rocket_width / 2
+        center_y = y - rocket_height / 2
+
+        # Углы ракеты до вращения
+        corners = [
+            (x, y),  # Левый нижний
+            (x + rocket_width, y),  # Правый нижний
+            (x, y - rocket_height),  # Левый верхний
+            (x + rocket_width, y - rocket_height)  # Правый верхний
+        ]
+
+        # Угол в радианах
+        angle_rad = math.radians(self.player_angles[self.current_color])
+
+        # Вращаем углы вокруг центра
+        rotated_corners = []
+        for px, py in corners:
+            new_x = center_x + (px - center_x) * math.cos(angle_rad) - (py - center_y) * math.sin(angle_rad)
+            new_y = center_y + (px - center_x) * math.sin(angle_rad) + (py - center_y) * math.cos(angle_rad)
+            rotated_corners.append((new_x, new_y))
+
+            for px, py in rotated_corners:
+                # Проверка на столкновение с левой и правой границей
+                if px <= 4 or px >= self.FIELD_WIDTH - 4:
+                    self.crashed = True
+                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
+                    self.timer.stop()
+                    return
+
+                # Проверка на столкновение с верхней границей
+                if py <= 4:
+                    self.crashed = True
+                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
+                    self.timer.stop()
+                    return
+
+                # Проверка на столкновение с нижней границей
+                if py >= self.FIELD_HEIGHT - 20 and not (self.FIELD_HEIGHT - 10 <= py <= self.FIELD_HEIGHT):
+                    self.crashed = True
+                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
+                    self.timer.stop()
+                    return
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш."""
         key = event.text().upper()  # Получаем нажатую клавишу в верхнем регистре
@@ -145,6 +226,8 @@ class GameWindow(QWidget):
 
         self.update()
 
+        self.check_landing()
+
     def receive_data_from_server(self):
         """Получение позиций игроков от сервера и отправка своей позиции ракеты."""
         try:
@@ -191,7 +274,9 @@ class GameWindow(QWidget):
         middle_x = self.FIELD_WIDTH // 2
         painter.drawRect(middle_x - 2, 0, 4, self.FIELD_HEIGHT)  # Толщина 4 пикселя
 
-        # Левые и правые границы
+        # Верхняя, нижняя, левая и правая границы
+        painter.drawRect(0, 0, self.FIELD_WIDTH, 4)  # Верхняя
+        painter.drawRect(0, self.FIELD_HEIGHT - 4, self.FIELD_WIDTH, 4)  # Нижняя
         painter.drawRect(0, 0, 4, self.FIELD_HEIGHT)  # Левая
         painter.drawRect(self.FIELD_WIDTH - 4, 0, 4, self.FIELD_HEIGHT)  # Правая
 
