@@ -76,7 +76,6 @@ def handle_client(client_socket, address):
         print(f"Ошибка: {e}")
     finally:
         if lobby_name:
-            print(1)
             clean_up_client(client_socket, lobby_name, color)
 
 def clean_up_client(client_socket, lobby_name, color):
@@ -84,7 +83,6 @@ def clean_up_client(client_socket, lobby_name, color):
     with lobby_locks[lobby_name]:
         if (client_socket, color) in lobbies[lobby_name]:  # проверка с учетом цвета
             lobbies[lobby_name].remove((client_socket, color))
-            print(f"[DEBUG] Клиент {client_socket} удален из {lobby_name}.")
     
     broadcast_lobby_state(lobby_name)
     client_socket.close()
