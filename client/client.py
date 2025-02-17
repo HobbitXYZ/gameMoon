@@ -30,12 +30,6 @@ class GameWindow(QWidget):
         self.velocity_x = 0
         self.velocity_y = 0
 
-        # Рандомная генерация площадки для посадки
-        self.platform_positions = {
-            "blue": [random.randint(50, self.FIELD_WIDTH // 2 - self.PLATFORM_WIDTH - 50), self.FIELD_HEIGHT - 10],
-            "red": [random.randint(self.FIELD_WIDTH // 2 + 50, self.FIELD_WIDTH - self.PLATFORM_WIDTH - 50), self.FIELD_HEIGHT - 10]
-        }
-
         # Гравитация
         self.gravity = 0.2
 
@@ -91,14 +85,6 @@ class GameWindow(QWidget):
         new_x = max(4, min(self.FIELD_WIDTH - 14, new_x))  # 4 - левая граница, 14 - правая
         new_y = max(0, min(self.FIELD_HEIGHT - 10, new_y))  # Верх и низ
 
-        # Проверка приземления на площадку
-        platform_x, platform_y = self.platform_positions[self.current_color]
-        if platform_x <= new_x <= platform_x + self.PLATFORM_WIDTH and abs(new_y - platform_y) <= 5:
-            new_y = platform_y
-            self.velocity_x = 0
-            self.velocity_y = 0
-            print(f"{self.current_color} успешно приземлился!")
-
         # Обновляем позицию
         self.player_positions[self.current_color] = [new_x, new_y]
 
@@ -142,11 +128,6 @@ class GameWindow(QWidget):
         # Левые и правые границы
         painter.drawRect(0, 0, 4, self.FIELD_HEIGHT)  # Левая
         painter.drawRect(self.FIELD_WIDTH - 4, 0, 4, self.FIELD_HEIGHT)  # Правая
-
-        # Посадочные площадки
-        painter.setBrush(QColor("purple"))
-        for pos in self.platform_positions.values():
-            painter.drawRect(pos[0], pos[1], self.PLATFORM_WIDTH, self.PLATFORM_HEIGHT)
 
         # Рисуем синий шарик
         painter.setBrush(QColor("blue"))
