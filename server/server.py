@@ -1,5 +1,6 @@
 import socket
 import threading
+import random
 from utils import send_data, receive_data
 
 # Предустановленные лобби и блокировки для каждого лобби
@@ -36,7 +37,19 @@ def handle_client(client_socket, address):
                 # Назначение цвета
                 color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
                 lobbies[lobby_name].append((client_socket, color))
-                send_data(client_socket, color)
+
+                # Генерация случайных координат для платформы
+                if color == "blue":
+                    platform_start = random.randint(0, 400)
+                    platform_end = platform_start + 50
+                else:
+                    platform_start = random.randint(400, 750)
+                    platform_end = platform_start + 50
+
+                print(f"[DEBUG] {color} - Координаты платформы: {platform_start}, {platform_end}")
+
+                # Отправляем **единый пакет** с цветом и координатами
+                send_data(client_socket, (color, platform_start, platform_end))
 
             send_data(client_socket, f"Вы подключились к {lobby_name}")
             broadcast_lobby_state(lobby_name)
@@ -77,12 +90,12 @@ def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
     with lobby_locks[lobby_name]:
         clients = lobbies.get(lobby_name, [])
-        print(f"Рассылка движения: {request} в {lobby_name} для {len(clients)} игроков")  # Логирование
+        #cprint(f"Рассылка движения: {request} в {lobby_name} для {len(clients)} игроков")  # Логирование
 
         for client, color in clients:
             if client != sender_socket and color != "observer":
                 try:
-                    print(f"Отправка {request} клиенту {color}")  # Лог
+                    # print(f"Отправка {request} клиенту {color}")  # Лог
                     send_data(client, request)
                 except Exception as e:
                     print(f"Ошибка отправки: {e}")

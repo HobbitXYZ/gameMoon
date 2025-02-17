@@ -167,9 +167,19 @@ class LobbyWindow(QWidget):
         """Проверяет, готово ли лобби для игры."""
         try:
             if not self.player_color:  # Получаем цвет только один раз
-                self.player_color = receive_data(self.client_socket)
-                print(f"Цвет игрока: {self.player_color}")
+                received_data = receive_data(self.client_socket)
+                print(f"[DEBUG] Получены данные: {received_data}")  # Лог
 
+                # Проверяем, что получили именно кортеж (цвет, платформа старт, платформа конец)
+                if isinstance(received_data, tuple) and len(received_data) == 3:
+                    self.player_color, platform_start, platform_end = received_data
+                else:
+                    QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
+                    self.close()
+                    self.timer.stop()
+                    self.parent_window.show()
+                    return  # ВАЖНО: Прерываем выполнение функции
+                
                 # Если цвет "full", сразу возвращаемся к выбору лобби
                 if self.player_color == "full":
                     QMessageBox.information(self, "Лобби переполнено", "Лобби переполнено. Выберите другое лобби.")
@@ -177,6 +187,9 @@ class LobbyWindow(QWidget):
                     self.timer.stop()
                     self.parent_window.show()
                     return  # ВАЖНО: Прерываем выполнение функции
+                else:
+                    print(f"Цвет игрока: {self.player_color}")
+                    print(f"Координаты платформы игрока {self.player_color}: Начало = {platform_start}, Конец = {platform_end}")
 
             send_data(self.client_socket, "status")
             print("Отправка запроса статуса лобби: status")  # Логируем отправку

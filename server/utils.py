@@ -4,4 +4,4 @@ def send_data(sock, data):
     sock.sendall(pickle.dumps(data))
 
 def receive_data(sock):
-    return pickle.loads(sock.recv(4096))
+    return pickle.loads(sock.recv(8192))
