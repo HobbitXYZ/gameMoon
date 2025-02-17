@@ -1,8 +1,9 @@
 import socket
-import random
+import math
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QPainter
+from PyQt6.QtGui import QColor, QPainter, QPolygonF
+from PyQt6.QtCore import QPointF
 from utils import send_data, receive_data
 
 class GameWindow(QWidget):
@@ -19,7 +20,7 @@ class GameWindow(QWidget):
         self.setGeometry(100, 100, self.FIELD_WIDTH, self.FIELD_HEIGHT)
         self.setFixedSize(self.FIELD_WIDTH, self.FIELD_HEIGHT)
 
-        # Позиции шариков игроков
+        # Позиции игроков
         self.player_positions = {
             "blue": [200, 0],
             "red": [600, 0]
@@ -35,9 +36,12 @@ class GameWindow(QWidget):
         self.current_color = player_color
         self.velocity_x = 0
         self.velocity_y = 0
-
-        # Гравитация
-        self.gravity = 0.2
+        self.player_angles = {
+            "blue": 0,  # Угол для синего игрока
+            "red": 0    # Угол для красного игрока
+        }
+        # Гравитация ТУТ
+        self.gravity = 1
 
         # Таймер обновления игры
         self.timer = QTimer()
@@ -51,36 +55,95 @@ class GameWindow(QWidget):
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
+        # Словарь для отслеживания нажатых клавиш
+        self.pressed_keys = {
+            "A": False,
+            "D": False
+        }
+
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш."""
-        key = event.text().lower()
-        if key == 'w':
-            self.velocity_y = -5
-        elif key == 's':
-            self.velocity_y = 5
-        elif key == 'a':
-            self.velocity_x = -5
-        elif key == 'd':
-            self.velocity_x = 5
+        key = event.text().upper()  # Получаем нажатую клавишу в верхнем регистре
+        if key == 'A':
+            self.pressed_keys["A"] = True  # Помечаем, что клавиша A нажата
+        elif key == 'D':
+            self.pressed_keys["D"] = True  # Помечаем, что клавиша D нажата
 
     def keyReleaseEvent(self, event):
-        """Остановка движения при отпускании клавиш."""
-        key = event.text().lower()
-        if key in {'w', 's'}:
-            self.velocity_y = 0
-        if key in {'a', 'd'}:
-            self.velocity_x = 0
+        """Обработка отпускания клавиш."""
+        key = event.text().upper()  # Получаем отпущенную клавишу в верхнем регистре
+        if key == 'A':
+            self.pressed_keys["A"] = False  # Помечаем, что клавиша A отпущена
+        elif key == 'D':
+            self.pressed_keys["D"] = False  # Помечаем, что клавиша D отпущена
 
     def update_game(self):
         """Обновление позиций игроков и отправка данных серверу."""
-        # Применение гравитации
-        self.velocity_y += self.gravity
+        # Рассчитываем угол наклона ракеты в радианах
+        angle_rad = math.radians(self.player_angles[self.current_color])
 
-        # Вычисляем новые координаты
+        # Гравитация всегда тянет вниз, но действует на верхнюю точку (нос ракеты)
+        gravity_x = math.sin(angle_rad) * self.gravity  # Влияние гравитации по горизонтали
+        gravity_y = math.cos(angle_rad) * self.gravity  # Влияние гравитации по вертикали
+
+        # Изначальная скорость (при отсутствии воздействия на скорость)
+        self.velocity_y = gravity_y  # Добавляем воздействие гравитации по вертикали
+
+        # Если никаких кнопок не нажато, ракета падает под действием гравитации
+        if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
+            self.velocity_x = 0  # Нет горизонтального движения
+            self.velocity_y += self.gravity  # Ракета падает под действием гравитации
+
+        # Двигатели ракеты не дают гравитации полностью направлять её вниз
+        if self.pressed_keys["A"] and self.pressed_keys["D"]:
+            # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
+            angle_rad = math.radians(self.player_angles[self.current_color])  # Преобразуем угол в радианы
+
+            # Скорость движения вверх в зависимости от угла наклона ракеты
+            # Используем cos для вертикальной компоненты и sin для горизонтальной
+            self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
+            self.velocity_y = math.cos(angle_rad) * -2  # Вертикальное движение вверх, против гравитации
+
+        # Обработка движения с помощью клавиш:
+        if self.pressed_keys["A"] and not self.pressed_keys["D"]:
+            # Поворот по часовой стрелке (если нажата только клавиша A)
+            print(self.player_angles[self.current_color])
+            self.player_angles[self.current_color] -= 3  # Поворот по часовой стрелке
+
+            # Нормализация угла, чтобы он не выходил за пределы -180 до 180
+            if self.player_angles[self.current_color] < -180:
+                self.player_angles[self.current_color] += 360  # Приводим к положительному углу
+        elif self.pressed_keys["D"] and not self.pressed_keys["A"]:
+            # Поворот против часовой стрелки (если нажата только клавиша D)
+            print(self.player_angles[self.current_color])
+            self.player_angles[self.current_color] += 3  # Поворот против часовой стрелки
+
+            # Нормализация угла, чтобы он не выходил за пределы -180 до 180
+            if self.player_angles[self.current_color] > 180:
+                self.player_angles[self.current_color] -= 360  # Приводим к отрицательному углу
+
+        # Рассчитываем новый угол наклона ракеты на основе её движения
+        # Если угол наклона отклоняется от 90°, ракета начнёт вращаться для коррекции
+        if abs(self.player_angles[self.current_color]) < 90:
+            # Если угол отклонён влево или вправо, ракета начинает выравниваться
+            if self.player_angles[self.current_color] < 0:
+                self.player_angles[self.current_color] -= 1  # Поворот по часовой стрелке
+            elif self.player_angles[self.current_color] > 0:
+                self.player_angles[self.current_color] += 1  # Поворот против часовой стрелки
+        elif abs(self.player_angles[self.current_color]) >= 90 and abs(self.player_angles[self.current_color]) < 180:
+            # Если угол больше 90°, ракета начинает вращаться в противоположную сторону
+            if self.player_angles[self.current_color] < 0:
+                self.player_angles[self.current_color] -= 1  # Поворот против часовой стрелки
+            elif self.player_angles[self.current_color] > 0:
+                self.player_angles[self.current_color] += 1  # Поворот по часовой стрелке
+        else:
+            self.player_angles[self.current_color] = 180
+
+        # Вычисляем новые координаты ракеты
         new_x = self.player_positions[self.current_color][0] + self.velocity_x
         new_y = self.player_positions[self.current_color][1] + self.velocity_y
 
-        # Ограничение по вертикальной границе в центре
+        # Ограничение по вертикальной границе
         middle_x = self.FIELD_WIDTH // 2
         if self.current_color == "blue" and new_x + 10 > middle_x:
             new_x = middle_x - 10
@@ -91,7 +154,7 @@ class GameWindow(QWidget):
         new_x = max(4, min(self.FIELD_WIDTH - 14, new_x))  # 4 - левая граница, 14 - правая
         new_y = max(0, min(self.FIELD_HEIGHT - 10, new_y))  # Верх и низ
 
-        # Обновляем позицию
+        # Обновляем позицию ракеты
         self.player_positions[self.current_color] = [new_x, new_y]
 
         # Отправка новых позиций серверу
@@ -103,18 +166,33 @@ class GameWindow(QWidget):
         self.update()
 
     def receive_data_from_server(self):
-        """Получение позиций игроков от сервера."""
+        """Получение позиций игроков от сервера и отправка своей позиции ракеты."""
         try:
             message = receive_data(self.client_socket)
             if message.startswith("move:"):
-
                 parts = message.split(":")
                 if len(parts) == 4:  # move:цвет:x:y
                     color, x, y = parts[1], float(parts[2]), float(parts[3])
-                    self.player_positions[color] = [x, y]
+                    self.player_positions[color] = [x, y]  # Обновляем позицию другого игрока
                     self.update()
         except Exception as e:
             print(f"Ошибка получения данных: {e}")
+
+    def send_position_to_server(self):
+        """Отправка своей позиции ракеты на сервер."""
+        try:
+            # Получаем текущие координаты ракеты из player_positions
+            new_x, new_y = self.player_positions[self.current_color]  # Теперь используем этот атрибут
+            
+            # Формируем сообщение для отправки
+            message = f"move:{self.current_color}:{new_x}:{new_y}"
+            
+            # Отправляем данные серверу
+            send_data(self.client_socket, message)
+            
+        except Exception as e:
+            print(f"Ошибка отправки данных: {e}")
+            self.close()
 
     def paintEvent(self, event):
         """Отрисовка игроков и границ."""
@@ -140,15 +218,31 @@ class GameWindow(QWidget):
             painter.setBrush(QColor("purple"))  # Цвет платформы
             painter.drawRect(start_x, self.FIELD_HEIGHT - 20, end_x - start_x, 10)
 
-        # Рисуем синий шарик
-        painter.setBrush(QColor("blue"))
-        x, y = self.player_positions["blue"]
-        painter.drawEllipse(int(x), int(y), 10, 10)
+        # Рисуем ракеты для обоих игроков
+        for color, (x, y) in self.player_positions.items():
+            # Вершины ракеты (левая нижняя, правая нижняя, верхняя)
+            points = [
+                (x, y),  # Левая точка
+                (x + 20, y),  # Правая точка
+                (x + 10, y - 40),  # Верхняя точка
+            ]
 
-        # Рисуем красный шарик
-        painter.setBrush(QColor("red"))
-        x, y = self.player_positions["red"]
-        painter.drawEllipse(int(x), int(y), 10, 10)
+            # Применение поворота
+            angle_rad = math.radians(self.player_angles[color])
+            center_x = x + 5  # Центр ракеты
+            center_y = y - 10
+
+            rotated_points = []
+            for px, py in points:
+                # Поворот каждой точки
+                rotated_x = center_x + (px - center_x) * math.cos(angle_rad) - (py - center_y) * math.sin(angle_rad)
+                rotated_y = center_y + (px - center_x) * math.sin(angle_rad) + (py - center_y) * math.cos(angle_rad)
+                rotated_points.append((rotated_x, rotated_y))
+
+            # Рисуем ракету
+            painter.setBrush(QColor(color))  # Используем цвет игрока
+            polygon = QPolygonF([QPointF(x, y) for x, y in rotated_points])
+            painter.drawPolygon(polygon)
 
 
 class LobbyWindow(QWidget):
