@@ -4,6 +4,8 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLa
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPolygonF
 from PyQt6.QtCore import QPointF
+from PyQt6.QtGui import QBrush
+from PyQt6.QtGui import QPen
 from PyQt6.QtCore import QElapsedTimer
 from utils import send_data, receive_data
 
@@ -121,6 +123,7 @@ class GameWindow(QWidget):
 
             if self.crashed:
                 self.is_game_over = True  # Блокируем управление
+                self.player_angles[self.current_color] = 180
                 print("Ракета разбилась")  # Вывод в терминал
                 return  # Выходим из функции
             
@@ -149,7 +152,10 @@ class GameWindow(QWidget):
         # Рассчитываем угол наклона ракеты в радианах
         angle_rad = math.radians(self.player_angles[self.current_color])
 
-        self.velocity_y += self.gravity  # Гравитация всегда действует
+        if self.crashed == True:
+            self.gravity = 10
+        else:
+            self.velocity_y += self.gravity # Гравитация всегда действует
 
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
@@ -173,20 +179,20 @@ class GameWindow(QWidget):
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] > 180:
                 self.player_angles[self.current_color] -= 360  # Приводим к отрицательному углу
-
-        # Рассчитываем новый угол наклона ракеты на основе её движения
-        if abs(self.player_angles[self.current_color]) < 90:
-            if self.player_angles[self.current_color] < 0:
-                self.player_angles[self.current_color] -= 1  # Поворот по часовой стрелке
-            elif self.player_angles[self.current_color] > 0:
-                self.player_angles[self.current_color] += 1  # Поворот против часовой стрелки
-        elif abs(self.player_angles[self.current_color]) >= 90 and abs(self.player_angles[self.current_color]) < 180:
-            if self.player_angles[self.current_color] < 0:
-                self.player_angles[self.current_color] -= 1  # Поворот против часовой стрелки
-            elif self.player_angles[self.current_color] > 0:
-                self.player_angles[self.current_color] += 1  # Поворот по часовой стрелке
-        else:
-            self.player_angles[self.current_color] = 180
+        if self.landed == False or self.crashed == False:    
+            # Рассчитываем новый угол наклона ракеты на основе её движения
+            if abs(self.player_angles[self.current_color]) < 90:
+                if self.player_angles[self.current_color] < 0:
+                    self.player_angles[self.current_color] -= 1  # Поворот по часовой стрелке
+                elif self.player_angles[self.current_color] > 0:
+                    self.player_angles[self.current_color] += 1  # Поворот против часовой стрелки
+            elif abs(self.player_angles[self.current_color]) >= 90 and abs(self.player_angles[self.current_color]) < 180:
+                if self.player_angles[self.current_color] < 0:
+                    self.player_angles[self.current_color] -= 1  # Поворот против часовой стрелки
+                elif self.player_angles[self.current_color] > 0:
+                    self.player_angles[self.current_color] += 1  # Поворот по часовой стрелке
+            else:
+                self.player_angles[self.current_color] = 180
 
         # Вычисляем новые координаты ракеты
         new_x = self.player_positions[self.current_color][0] + self.velocity_x
@@ -282,11 +288,48 @@ class GameWindow(QWidget):
                 (x + 10, y - 40),  # Верхняя точка
             ]
 
+            painter.setPen(QPen(Qt.PenStyle.NoPen))  # Убираем контуры
+            painter.setBrush(QBrush(Qt.GlobalColor.transparent))  # Прозрачная кисть (если нужно)
+
+            # **Стабилизаторы**
+            left_stabilizer = QPolygonF([
+                QPointF(x - 4, y + 4),
+                QPointF(x + 4, y + 4),
+                QPointF(x, y - 20),
+            ])
+            right_stabilizer = QPolygonF([
+                QPointF(x + 24, y + 4),
+                QPointF(x + 16, y + 4),
+                QPointF(x + 20, y - 20),
+            ])
+
             # Применение поворота
             angle_rad = math.radians(self.player_angles[color])
             center_x = x + 5  # Центр ракеты
             center_y = y - 10
 
+            # Поворот стабилизаторов
+            rotated_left_stabilizer = []
+            rotated_right_stabilizer = []
+
+            for stabilizer in [left_stabilizer, right_stabilizer]:
+                rotated_stabilizer = []
+                for point in stabilizer:
+                    # Поворот каждой точки
+                    rotated_x = center_x + (point.x() - center_x) * math.cos(angle_rad) - (point.y() - center_y) * math.sin(angle_rad)
+                    rotated_y = center_y + (point.x() - center_x) * math.sin(angle_rad) + (point.y() - center_y) * math.cos(angle_rad)
+                    rotated_stabilizer.append(QPointF(rotated_x, rotated_y))
+                if stabilizer == left_stabilizer:
+                    rotated_left_stabilizer = rotated_stabilizer
+                else:
+                    rotated_right_stabilizer = rotated_stabilizer
+
+            # Рисуем стабилизаторы с применением поворота
+            painter.setBrush(QColor(color))  # Используем цвет игрока
+            painter.drawPolygon(rotated_left_stabilizer)
+            painter.drawPolygon(rotated_right_stabilizer)
+
+            # Поворот основного треугольника ракеты
             rotated_points = []
             for px, py in points:
                 # Поворот каждой точки
@@ -294,9 +337,9 @@ class GameWindow(QWidget):
                 rotated_y = center_y + (px - center_x) * math.sin(angle_rad) + (py - center_y) * math.cos(angle_rad)
                 rotated_points.append((rotated_x, rotated_y))
 
-            # Рисуем ракету
-            painter.setBrush(QColor(color))  # Используем цвет игрока
+            # Рисуем основную часть ракеты (треугольник) с учетом поворота
             polygon = QPolygonF([QPointF(x, y) for x, y in rotated_points])
+            painter.setBrush(QColor(color))  # Используем цвет игрока
             painter.drawPolygon(polygon)
 
 

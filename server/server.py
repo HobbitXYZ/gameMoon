@@ -94,7 +94,7 @@ def broadcast_game_update(request, lobby_name, sender_socket):
         #print(f"Рассылка движения: {request} в {lobby_name} для {len(clients)} игроков")  # Логирование
 
         for client, color in clients:
-            if client != sender_socket and color != "observer":
+            if client != sender_socket:
                 try:
                     #print(f"Отправка {request} клиенту {color}")  # Лог
                     send_data(client, request)
