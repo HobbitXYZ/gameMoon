@@ -112,7 +112,7 @@ class GameWindow(QWidget):
 
         for px, py in rotated_corners:
             # Проверка на столкновение с левой и правой границей
-            if px <= 4 or px >= self.FIELD_WIDTH - 4:
+            if px <= 4 or px >= self.FIELD_WIDTH - 4 or (self.FIELD_WIDTH // 2 - 2) <= px <= (self.FIELD_WIDTH // 2 + 2):
                 self.crashed = True
             # Проверка на столкновение с верхней границей
             elif py <= 4:
@@ -152,10 +152,14 @@ class GameWindow(QWidget):
         # Рассчитываем угол наклона ракеты в радианах
         angle_rad = math.radians(self.player_angles[self.current_color])
 
-        if self.crashed == True:
-            self.gravity = 10
-        else:
+        if self.crashed == False:
             self.velocity_y += self.gravity # Гравитация всегда действует
+            print(self.velocity_y)
+        else:
+            print(self.velocity_y)
+            self.velocity_y = 10
+            self.velocity_y += self.gravity # Гравитация всегда действует
+            print(self.velocity_y)
 
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
