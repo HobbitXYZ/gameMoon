@@ -75,7 +75,8 @@ class GameWindow(QWidget):
         if (platform_start <= left_foot[0] <= platform_end and
                 platform_start <= right_foot[0] <= platform_end and
                 self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
-                self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT ):
+                self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT 
+                and abs(angle) < 20):
 
             self.landed = True
             self.is_game_over = True  # Блокируем управление
