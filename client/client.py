@@ -47,6 +47,7 @@ class GameWindow(QWidget):
 
         # Словарь для отслеживания нажатых клавиш
         self.pressed_keys = {"A": False,"D": False}
+        self.is_game_over = False  # Флаг завершения игры
 
          # **Таймер посадки**
         self.landing_timer = QElapsedTimer()
@@ -72,20 +73,20 @@ class GameWindow(QWidget):
         if (platform_start <= left_foot[0] <= platform_end and
                 platform_start <= right_foot[0] <= platform_end and
                 self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
-                self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT and
-                abs(angle) < 5):
+                self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT ):
 
             self.landed = True
-            time_elapsed = self.landing_timer.elapsed() / 1000  # Время в секундах
-            QMessageBox.information(self, "Посадка!", f"Ракета успешно приземлилась!\nВремя: {time_elapsed:.2f} сек.")
-            self.timer.stop()  # Останавливаем игру
+            self.is_game_over = True  # Блокируем управление
+            self.player_angles[self.current_color] = 0
+            print (self.player_angles[self.current_color])
+            print("Ракета успешно приземлилась")  # Вывод в терминал
+            return  # Завершаем функцию
 
         # Размеры ракеты
         rocket_width = 20
         rocket_height = 40
 
         # Координаты центра ракеты
-        x, y = self.player_positions[self.current_color]
         center_x = x + rocket_width / 2
         center_y = y - rocket_height / 2
 
@@ -107,29 +108,26 @@ class GameWindow(QWidget):
             new_y = center_y + (px - center_x) * math.sin(angle_rad) + (py - center_y) * math.cos(angle_rad)
             rotated_corners.append((new_x, new_y))
 
-            for px, py in rotated_corners:
-                # Проверка на столкновение с левой и правой границей
-                if px <= 4 or px >= self.FIELD_WIDTH - 4:
-                    self.crashed = True
-                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
-                    self.timer.stop()
-                    return
+        for px, py in rotated_corners:
+            # Проверка на столкновение с левой и правой границей
+            if px <= 4 or px >= self.FIELD_WIDTH - 4:
+                self.crashed = True
+            # Проверка на столкновение с верхней границей
+            elif py <= 4:
+                self.crashed = True
+            # Проверка на столкновение с нижней границей (если не на платформе)
+            elif py >= self.FIELD_HEIGHT - 15 and not (self.FIELD_HEIGHT - 10 <= py <= self.FIELD_HEIGHT):
+                self.crashed = True
 
-                # Проверка на столкновение с верхней границей
-                if py <= 4:
-                    self.crashed = True
-                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
-                    self.timer.stop()
-                    return
-
-                # Проверка на столкновение с нижней границей
-                if py >= self.FIELD_HEIGHT - 20 and not (self.FIELD_HEIGHT - 10 <= py <= self.FIELD_HEIGHT):
-                    self.crashed = True
-                    QMessageBox.critical(self, "Крушение!", "Ракета разбилась!")
-                    self.timer.stop()
-                    return
+            if self.crashed:
+                self.is_game_over = True  # Блокируем управление
+                print("Ракета разбилась")  # Вывод в терминал
+                return  # Выходим из функции
+            
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш."""
+        if self.is_game_over:  # Если игра завершена, игнорируем нажатия
+            return
         key = event.text().upper()  # Получаем нажатую клавишу в верхнем регистре
         if key == 'A':
             self.pressed_keys["A"] = True  # Помечаем, что клавиша A нажата
@@ -138,6 +136,8 @@ class GameWindow(QWidget):
 
     def keyReleaseEvent(self, event):
         """Обработка отпускания клавиш."""
+        if self.is_game_over:  # Если игра завершена, игнорируем нажатия
+            return
         key = event.text().upper()  # Получаем отпущенную клавишу в верхнем регистре
         if key == 'A':
             self.pressed_keys["A"] = False  # Помечаем, что клавиша A отпущена
@@ -271,7 +271,7 @@ class GameWindow(QWidget):
         # Рисуем платформы с учетом координат для каждого игрока
         for color, (start_x, end_x) in self.platforms.items():
             painter.setBrush(QColor("purple"))  # Цвет платформы
-            painter.drawRect(start_x, self.FIELD_HEIGHT - 10, end_x - start_x, 10)
+            painter.drawRect(start_x, self.FIELD_HEIGHT - 20, end_x - start_x, 20)
 
         # Рисуем ракеты для обоих игроков
         for color, (x, y) in self.player_positions.items():
