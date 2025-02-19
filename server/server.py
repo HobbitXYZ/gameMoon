@@ -1,11 +1,24 @@
 import socket
 import threading
 import random
+import os
 from utils import send_data, receive_data
 
 # Предустановленные лобби и блокировки для каждого лобби
 lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
+
+# Функция для записи данных в файл
+def log_endgame_to_file(player_name, time):
+    """Записывает имя игрока и время в файл."""
+    log_file = "endgame_log.txt"
+    
+    # Проверяем, существует ли файл, если нет — создаем его
+    file_exists = os.path.exists(log_file)
+    
+    with open(log_file, "a") as f:
+        f.write(f"{player_name}, {time}\n")
+    print(f"Данные о завершении игры: {player_name}, {time} записаны в файл.")
 
 def handle_client(client_socket, address):
     """Обрабатывает подключение клиента."""
@@ -64,6 +77,15 @@ def handle_client(client_socket, address):
                         send_lobby_status(client_socket, lobby_name)
                     elif request.startswith("move:"):
                         broadcast_game_update(request, lobby_name, client_socket)
+                    elif request.startswith("endgame:"):
+                        # Извлекаем имя игрока и время из запроса
+                        player_name, time = request[len("endgame:"):].split(",")
+                        # Логируем информацию в файл
+                        log_endgame_to_file(player_name, time)
+                        # Формируем сообщение для другого игрока
+                        endgame_message = f"endgame:{player_name},{time}"
+                        # Отправляем это сообщение другому клиенту в лобби
+                        send_endgame_message(lobby_name, endgame_message, client_socket)
                     else:
                         print(f"Неизвестный запрос от клиента: {request}")
                 except (ConnectionResetError, ConnectionAbortedError):
@@ -77,6 +99,18 @@ def handle_client(client_socket, address):
     finally:
         if lobby_name:
             clean_up_client(client_socket, lobby_name, color)
+
+def send_endgame_message(lobby_name, message, sender_socket):
+    """Отправляет сообщение об окончании игры другому игроку в лобби."""
+    with lobby_locks[lobby_name]:
+        clients = lobbies.get(lobby_name, [])
+        for client, color in clients:
+            if client != sender_socket:
+                try:
+                    send_data(client, message)
+                except Exception as e:
+                    print(f"Ошибка отправки сообщения об окончании игры: {e}")
+                    clients.remove((client, color))
 
 def clean_up_client(client_socket, lobby_name, color):
     """Очистка состояния клиента и лобби."""
