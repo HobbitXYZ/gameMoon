@@ -137,11 +137,11 @@ def clean_up_client(client_socket, lobby_name, color):
         if (client_socket, color) in lobbies[lobby_name]:  # проверка с учетом цвета
             lobbies[lobby_name].remove((client_socket, color))
             lobby_button_presses[lobby_name] = 0
-            reset_lobbies()
             print(f"[DEBUG] Клиент {client_socket} удален из {lobby_name}.")
     
     broadcast_lobby_state(lobby_name)
     client_socket.close()
+    reset_lobbies()
 
 def reset_lobbies():
     """Полностью очищает все лобби и генерирует новые координаты платформ."""
@@ -188,7 +188,7 @@ def send_lobby_status(client_socket, lobby_name):
         status = "0"  # Красный индикатор
 
     # Определяем статус кнопки
-    button_status = "All" if button_presses >= 2 else "0"
+    button_status = "All" if button_presses >= 2 else "One"
 
     # Отправляем кортеж
     send_data(client_socket, f"{status},{button_status}")
