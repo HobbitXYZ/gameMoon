@@ -13,11 +13,13 @@ class GameWindow(QWidget):
     FIELD_WIDTH = 800
     FIELD_HEIGHT = 800
 
-    def __init__(self, client_socket, player_color, platform_start, platform_end):
+    def __init__(self, client_socket, player_color, platform_start, platform_end, player_name):
         super().__init__()
 
         self.client_socket = client_socket
-        self.setWindowTitle("Космический Лэндер — Игра с двумя игроками")
+        self.player_name = player_name  # Сохраняем имя игрока
+        print(self.player_name)
+        self.setWindowTitle(f"Игра — {self.player_name}")
         self.setGeometry(100, 100, self.FIELD_WIDTH, self.FIELD_HEIGHT)
         self.setFixedSize(self.FIELD_WIDTH, self.FIELD_HEIGHT)
 
@@ -81,7 +83,7 @@ class GameWindow(QWidget):
             self.landed = True
             self.is_game_over = True  # Блокируем управление
             self.player_angles[self.current_color] = 0
-            print (self.player_angles[self.current_color])
+            print(self.player_angles[self.current_color])
             print("Ракета успешно приземлилась")  # Вывод в терминал
             return  # Завершаем функцию
 
@@ -155,12 +157,12 @@ class GameWindow(QWidget):
 
         if self.crashed == False:
             self.velocity_y += self.gravity # Гравитация всегда действует
-            print(self.velocity_y)
+            #print(self.velocity_y)
         else:
-            print(self.velocity_y)
+            #print(self.velocity_y)
             self.velocity_y = 10
             self.velocity_y += self.gravity # Гравитация всегда действует
-            print(self.velocity_y)
+            #print(self.velocity_y)
 
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
@@ -373,6 +375,7 @@ class LobbyWindow(QWidget):
         self.client_socket = client_socket
         self.parent_window = parent_window
         self.player_color = None
+        self.player_name = ""
         self.button_pressed = False  # Флаг нажатия кнопки  
         self.setWindowTitle("Лобби — Космический Лэндер")
         self.setGeometry(200, 200, 300, 250)
@@ -427,10 +430,10 @@ class LobbyWindow(QWidget):
     
     def on_lobby_button_click(self):
         """Обрабатывает нажатие кнопки входа в лобби."""
-        print("[DEBUG] Метод on_lobby_button_click() вызван")  # Проверяем вызов метода
         if not self.button_pressed:
             self.button_pressed = True
-            print(f"[DEBUG] Игрок {self.name_input.text()} нажал кнопку входа.")  # Проверяем, вызывается ли метод
+            self.player_name = self.name_input.text()  # Сохраняем имя игрока как атрибут
+            print(f"[DEBUG] Игрок {self.player_name} вошел в лобби.")  # Логируем имя
             
             # Меняем состояние кнопки
             self.enter_lobby_button.setDisabled(True)  
@@ -473,7 +476,6 @@ class LobbyWindow(QWidget):
 
             # **Добавляем проверку перед отправкой запроса**
             if not self.button_pressed:
-                print("[DEBUG] Кнопка не нажата, ждем...")
                 return  # Выходим из функции, если кнопка не нажата
         
             send_data(self.client_socket, "status")
@@ -484,7 +486,7 @@ class LobbyWindow(QWidget):
             if status == "2" and self.button_pressed:
                 self.status_label.setText("Начало игры!")
                 self.timer.stop()
-                self.start_game(self.player_color)
+                self.start_game(self.player_color, self.player_name)
             elif status == "1" and self.button_pressed:
                 print(self.button_pressed)
 
@@ -493,10 +495,10 @@ class LobbyWindow(QWidget):
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
             self.close()
 
-    def start_game(self, color):
+    def start_game(self, color, player_name):
         """Запускает игровое окно."""
         self.close()
-        self.game_window = GameWindow(self.client_socket, color, self.platform_start, self.platform_end)
+        self.game_window = GameWindow(self.client_socket, color, self.platform_start, self.platform_end, player_name)
         self.game_window.show()
 
 class SpaceLanderClient(QWidget):
