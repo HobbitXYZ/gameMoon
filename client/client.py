@@ -31,7 +31,10 @@ class GameWindow(QWidget):
         self.player_time = None
 
         # Координаты платформ
-        self.platforms = {"blue": (platform_start, platform_end),"red": (platform_start, platform_end)}
+        self.platforms = {
+            "blue": (platform_start, platform_end),  # Оставляем первую платформу без сдвига
+            "red": (platform_start + 400, platform_end + 400)  # Вторая платформа сдвигается на 400px вправо
+}
 
         # Управление текущего игрока
         self.current_color = player_color

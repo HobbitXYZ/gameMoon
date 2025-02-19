@@ -10,6 +10,9 @@ lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
 lobby_button_presses = defaultdict(int)  # Хранит клиентов, нажавших кнопку в каждом лобби
 
+platform_start = random.randint(4, 330)
+platform_end = platform_start + 55
+
 def log_endgame_to_file(player_name, time, landed):
     """Записывает имя игрока и время в файл, если таких данных нет."""
     log_file = "endgame_log.txt"
@@ -65,14 +68,6 @@ def handle_client(client_socket, address):
                 # Назначение цвета
                 color = "blue" if len(lobbies[lobby_name]) == 0 else "red"
                 lobbies[lobby_name].append((client_socket, color))
-
-                # Генерация случайных координат для платформы
-                if color == "blue":
-                    platform_start = random.randint(4, 330)
-                    platform_end = platform_start + 60
-                else:
-                    platform_start = random.randint(404, 730)
-                    platform_end = platform_start + 60
 
                 print(f"[DEBUG] {color} - Координаты платформы: {platform_start}, {platform_end}")
 
