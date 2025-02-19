@@ -1,6 +1,6 @@
 import socket
 import math
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QLineEdit
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPolygonF
 from PyQt6.QtCore import QPointF
@@ -372,21 +372,73 @@ class LobbyWindow(QWidget):
 
         self.client_socket = client_socket
         self.parent_window = parent_window
-        self.player_color = None  # Изначально цвет не задан
+        self.player_color = None
+        self.button_pressed = False  # Флаг нажатия кнопки  
         self.setWindowTitle("Лобби — Космический Лэндер")
-        self.setGeometry(200, 200, 300, 200)
-
-        self.status_label = QLabel("Подключение к серверу...")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setGeometry(200, 200, 300, 250)
 
         layout = QVBoxLayout()
+
+        # Поле для ввода имени
+        self.name_label = QLabel("Введите имя:")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.name_label)
+
+        self.name_input = QLineEdit()
+        self.name_input.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.name_input.setPlaceholderText("Ваше имя...")
+        layout.addWidget(self.name_input)
+
+        # Кнопка входа в лобби (изначально неактивна)
+        self.enter_lobby_button = QPushButton("Войти в лобби")
+        self.enter_lobby_button.setDisabled(True)  # Заблокирована до ввода имени
+        self.enter_lobby_button.setStyleSheet("background-color: lightgray;")  # Серый цвет
+        layout.addWidget(self.enter_lobby_button)
+
+        # Подключение обработчика изменения текста
+        self.name_input.textChanged.connect(self.check_name_input)
+
+        # Статус подключения
+        self.status_label = QLabel("Ожидание...")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.status_label)
+
         self.setLayout(layout)
 
-        # Таймер для запуска игры
+        # Подключаем метод к событию нажатия кнопки
+        self.enter_lobby_button.clicked.connect(self.on_lobby_button_click)
+
+
+        # Таймер для проверки готовности игры
         self.timer = QTimer()
         self.timer.timeout.connect(self.check_game_start)
         self.timer.start(500)
+
+    def check_name_input(self):
+        """Разблокирует кнопку, если введено имя."""
+        if self.name_input.text().strip() and not self.button_pressed:
+            self.enter_lobby_button.setDisabled(False)
+            self.enter_lobby_button.setStyleSheet("")  # Убираем серый цвет
+            self.enter_lobby_button.setText("Войти в лобби")  # Восстанавливаем текст
+        else:
+            self.enter_lobby_button.setDisabled(True)
+            self.enter_lobby_button.setStyleSheet("background-color: lightgray;")  # Снова делаем серой
+            self.enter_lobby_button.setText("Войти в лобби")  # На случай очистки имени
+    
+    def on_lobby_button_click(self):
+        """Обрабатывает нажатие кнопки входа в лобби."""
+        print("[DEBUG] Метод on_lobby_button_click() вызван")  # Проверяем вызов метода
+        if not self.button_pressed:
+            self.button_pressed = True
+            print(f"[DEBUG] Игрок {self.name_input.text()} нажал кнопку входа.")  # Проверяем, вызывается ли метод
+            
+            # Меняем состояние кнопки
+            self.enter_lobby_button.setDisabled(True)  
+            self.enter_lobby_button.setStyleSheet("background-color: lightgray; color: black;")  # Серый цвет
+            self.enter_lobby_button.setText("Ожидаем второго игрока...")  
+            
+            self.enter_lobby_button.repaint()  # Форсируем обновление интерфейса
+            self.repaint()  # Перерисовываем окно для надежности
 
 
     def check_game_start(self):
@@ -419,17 +471,23 @@ class LobbyWindow(QWidget):
                     print(f"Цвет игрока: {self.player_color}")
                     print(f"Координаты платформы игрока {self.player_color}: Начало = {platform_start}, Конец = {platform_end}")
 
+            # **Добавляем проверку перед отправкой запроса**
+            if not self.button_pressed:
+                print("[DEBUG] Кнопка не нажата, ждем...")
+                return  # Выходим из функции, если кнопка не нажата
+        
             send_data(self.client_socket, "status")
             print("Отправка запроса статуса лобби: status")  # Логируем отправку
             status = receive_data(self.client_socket)
             print(f"Получен статус лобби: {status}")  # Логируем полученный статус
 
-            if status == "2":
+            if status == "2" and self.button_pressed:
                 self.status_label.setText("Начало игры!")
                 self.timer.stop()
                 self.start_game(self.player_color)
-            elif status == "1":
-                self.status_label.setText("Ожидаем второго игрока...")
+            elif status == "1" and self.button_pressed:
+                print(self.button_pressed)
+
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")
