@@ -347,7 +347,7 @@ class GameWindow(QWidget):
             painter.setBrush(QColor(color))  # Используем цвет игрока
             painter.drawPolygon(polygon)
         # Отображаем угол текущего игрока и другого игрока
-        for i, color in enumerate(self.player_positions.keys()):
+        for color in self.player_positions.keys():
             angle = self.player_angles[color]
             angle_text = f"{angle:.2f}"
 
@@ -358,12 +358,12 @@ class GameWindow(QWidget):
                 painter.setPen(QColor("black"))
 
             # Расположение текста справа от ракеты
-            if color == self.current_color:
+            if color == "blue":
                 # Отображаем угол для текущего игрока
-                painter.drawText(self.FIELD_WIDTH - 120, 20 + (i * 20), f"Текущий: {angle_text}")
+                painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:{angle_text}")
             else:
                 # Отображаем угол для другого игрока
-                painter.drawText(self.FIELD_WIDTH - 520, 40 + (i * 20), f"Другой: {angle_text}")
+                painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:{angle_text}")
 
 
 class LobbyWindow(QWidget):
