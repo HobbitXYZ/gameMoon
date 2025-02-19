@@ -727,6 +727,9 @@ class ResultsWindow(QWidget):
                 QMessageBox.information(self, "Результаты", "Нет успешных посадок.")
                 return
 
+            # **Сортируем по времени (второй столбец)**
+            data.sort(key=lambda x: float(x[1]))  # Преобразуем время в float перед сортировкой
+
             self.table.setRowCount(len(data))
             self.table.setColumnCount(3)  # 3 столбца: игрок, время, посадка
             self.table.setHorizontalHeaderLabels(["Игрок", "Время (сек)", "Посадка"])
