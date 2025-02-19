@@ -35,6 +35,7 @@ def log_endgame_to_file(player_name, time, landed):
 def handle_client(client_socket, address):
     """Обрабатывает подключение клиента."""
     lobby_name = None
+    send_results_file(client_socket)
     try:
         send_data(client_socket, f"Доступные лобби: {', '.join(lobbies.keys())}")
         send_data(client_socket, "Введите номер лобби (например, '1' для Lobby 1):")
@@ -188,6 +189,22 @@ def start_server():
         client_socket, addr = server_socket.accept()
         print(f"Подключение от {addr}")
         threading.Thread(target=handle_client, args=(client_socket, addr)).start()
+
+def send_results_file(client_socket):
+    """Отправляет содержимое файла endgame_log.txt клиенту."""
+    try:
+        with open("endgame_log.txt", "r", encoding="utf-8") as file:
+            data = file.read()
+        
+        if not data.strip():
+            send_data(client_socket, "empty")  # Файл пуст
+        else:
+            send_data(client_socket, data)
+    except FileNotFoundError:
+        send_data(client_socket, "not_found")  # Файл не найден
+    except Exception as e:
+        print(f"Ошибка при отправке файла: {e}")
+        send_data(client_socket, "error")  # Общая ошибка
 
 if __name__ == "__main__":
     start_server()

@@ -1,6 +1,6 @@
 import socket
 import math
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QLineEdit
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QLineEdit, QTableWidget, QTableWidgetItem, QSpacerItem, QSizePolicy
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPainter, QPolygonF, QFont
 from PyQt6.QtCore import QPointF
@@ -173,7 +173,7 @@ class GameWindow(QWidget):
                 self.other_player_name = other_player_name
                 self.other_player_time = other_player_time
                 self.other_landed = other_landed
-                print("Проверяем конец игры")
+
                 # Если оба игрока отправили время, игра завершена
                 if self.player_time is not None and self.other_player_time is not None:
                     self.end_game()
@@ -622,7 +622,7 @@ class SpaceLanderClient(QWidget):
 
         self.client_socket = None
         self.setWindowTitle("Космический Лэндер — Выбор Лобби")
-        self.setGeometry(100, 100, 300, 300)
+        self.setGeometry(100, 100, 350, 350)
 
         layout = QVBoxLayout()
 
@@ -635,7 +635,20 @@ class SpaceLanderClient(QWidget):
             button.clicked.connect(lambda checked, i=i: self.connect_to_lobby(i))
             layout.addWidget(button)
 
+        # Кнопка "Таблица результатов"
+        self.results_button = QPushButton("Таблица результатов")
+        self.results_button.clicked.connect(self.show_results)
+        layout.addWidget(self.results_button)
+
+        spacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        layout.addItem(spacer)
+
         self.setLayout(layout)
+
+    def show_results(self):
+        """Открывает окно с таблицей результатов."""
+        self.results_window = ResultsWindow(self)
+        self.results_window.show()
 
     def connect_to_lobby(self, lobby_number):
         """Подключается к серверу и отображает новое окно лобби."""
@@ -655,6 +668,73 @@ class SpaceLanderClient(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка подключения: {e}")
+
+class ResultsWindow(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Таблица результатов")
+        self.setGeometry(0, 0, 350, 350)
+
+        self.client_socket = None  # Добавим атрибут для подключения к серверу
+
+        layout = QVBoxLayout()
+
+        self.table = QTableWidget()
+        self.load_results()
+        layout.addWidget(self.table)
+
+        # Кнопка "Назад"
+        self.back_button = QPushButton("Назад")
+        self.back_button.clicked.connect(self.close)
+        layout.addWidget(self.back_button)
+
+        self.setLayout(layout)
+
+    def load_results(self):
+        """Загружает результаты из файла на сервере и отображает только успешные посадки."""
+        try:
+            # Подключаемся к серверу
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect(('127.0.0.1', 5555))
+
+            # Отправляем запрос на получение результатов
+            send_data(self.client_socket, "get_results")
+            data = receive_data(self.client_socket)
+
+            # Если файл пуст или произошла ошибка
+            if data == "empty":
+                QMessageBox.information(self, "Результаты", "Файл результатов пуст.")
+                return
+            elif data == "not_found":
+                QMessageBox.warning(self, "Ошибка", "Файл с результатами не найден.")
+                return
+            elif data == "error":
+                QMessageBox.critical(self, "Ошибка", "Произошла ошибка при получении данных.")
+                return
+
+            # Разбираем данные
+            data = [line.strip().split(",") for line in data.split("\n") if line.strip().endswith("True")]
+
+            if not data:
+                QMessageBox.information(self, "Результаты", "Нет успешных посадок.")
+                return
+
+            self.table.setRowCount(len(data))
+            self.table.setColumnCount(3)  # 3 столбца: игрок, время, посадка
+            self.table.setHorizontalHeaderLabels(["Игрок", "Время (сек)", "Посадка"])
+
+            for row_idx, row in enumerate(data):
+                for col_idx, value in enumerate(row):
+                    self.table.setItem(row_idx, col_idx, QTableWidgetItem(value))
+
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка загрузки данных: {e}")
+
+    def closeEvent(self, event):
+        """Закрываем соединение при закрытии окна."""
+        if self.client_socket:
+            self.client_socket.close()
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication([])
