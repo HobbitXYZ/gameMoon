@@ -8,14 +8,25 @@ from utils import send_data, receive_data
 lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
 
-# Функция для записи данных в файл
 def log_endgame_to_file(player_name, time):
-    """Записывает имя игрока и время в файл."""
+    """Записывает имя игрока и время в файл, если таких данных нет."""
     log_file = "endgame_log.txt"
     
-    # Проверяем, существует ли файл, если нет — создаем его
+    # Проверяем, существует ли файл
     file_exists = os.path.exists(log_file)
     
+    # Если файл существует, читаем его содержимое
+    if file_exists:
+        with open(log_file, "r") as f:
+            existing_logs = f.readlines()
+        
+        # Проверяем, есть ли уже такая запись
+        for log in existing_logs:
+            existing_player_name, existing_time = log.strip().split(", ")
+            if existing_player_name == player_name and existing_time == time:
+                return  # Если запись найдена, выходим из функции
+
+    # Записываем новые данные в файл
     with open(log_file, "a") as f:
         f.write(f"{player_name}, {time}\n")
     print(f"Данные о завершении игры: {player_name}, {time} записаны в файл.")
@@ -86,6 +97,9 @@ def handle_client(client_socket, address):
                         endgame_message = f"endgame:{player_name},{time}"
                         # Отправляем это сообщение другому клиенту в лобби
                         send_endgame_message(lobby_name, endgame_message, client_socket)
+                    elif request.startswith("theend:"):
+                        if lobby_name:
+                            clean_up_client(client_socket, lobby_name, color)
                     else:
                         print(f"Неизвестный запрос от клиента: {request}")
                 except (ConnectionResetError, ConnectionAbortedError):
