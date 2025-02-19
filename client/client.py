@@ -549,6 +549,8 @@ class LobbyWindow(QWidget):
             self.button_pressed = True
             self.player_name = self.name_input.text()  # Сохраняем имя игрока как атрибут
             print(f"[DEBUG] Игрок {self.player_name} вошел в лобби.")  # Логируем имя
+
+            send_data(self.client_socket, "button_pressed")
             
             # Меняем состояние кнопки
             self.enter_lobby_button.setDisabled(True)  
@@ -592,19 +594,25 @@ class LobbyWindow(QWidget):
             # **Добавляем проверку перед отправкой запроса**
             if not self.button_pressed:
                 return  # Выходим из функции, если кнопка не нажата
-        
-            send_data(self.client_socket, "status")
-            print("Отправка запроса статуса лобби: status")  # Логируем отправку
-            status = receive_data(self.client_socket)
-            print(f"Получен статус лобби: {status}")  # Логируем полученный статус
 
-            if status == "2" and self.button_pressed:
+            # Отправляем запрос и принимаем ответ в виде кортежа
+            send_data(self.client_socket, "status")
+            print("Отправка запроса статуса лобби: status")
+            response = receive_data(self.client_socket)
+            
+            # Разбираем кортеж (status, button_status)
+            try:
+                self.status, self.status_button = response.split(",")
+                print(f"Получен статус лобби: {self.status}, статус кнопки: {self.status_button}")
+            except ValueError:
+                print(f"[ERROR] Некорректный ответ от сервера: {response}")
+                return  # Если что-то не так, просто выходим
+
+            # Если оба игрока нажали кнопку и статус лобби 2 — начинаем игру
+            if self.status == "2" and self.button_pressed and self.status_button == "All":
                 self.status_label.setText("Начало игры!")
                 self.timer.stop()
                 self.start_game(self.player_color, self.player_name)
-            elif status == "1" and self.button_pressed:
-                print(self.button_pressed)
-
 
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Ошибка связи с сервером: {e}")

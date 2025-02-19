@@ -2,11 +2,13 @@ import socket
 import threading
 import random
 import os
+from collections import defaultdict
 from utils import send_data, receive_data
 
 # Предустановленные лобби и блокировки для каждого лобби
 lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
+lobby_button_presses = defaultdict(int)  # Хранит клиентов, нажавших кнопку в каждом лобби
 
 def log_endgame_to_file(player_name, time, landed):
     """Записывает имя игрока и время в файл, если таких данных нет."""
@@ -88,6 +90,10 @@ def handle_client(client_socket, address):
                         break
                     if request.startswith("status"):
                         send_lobby_status(client_socket, lobby_name)
+                    elif request.startswith("button_pressed"):
+                        with lobby_locks[lobby_name]:  # Блокируем доступ, чтобы избежать гонки данных
+                            lobby_button_presses[lobby_name] += 1  # Увеличиваем общий счётчик нажатий
+                            #print(f"[DEBUG] Игрок нажал кнопку, текущее количество нажатий: {lobby_button_presses[lobby_name]}")
                     elif request.startswith("move:"):
                         broadcast_game_update(request, lobby_name, client_socket)
                     elif request.startswith("endgame:"):
@@ -96,9 +102,7 @@ def handle_client(client_socket, address):
                         # Логируем информацию в файл
                         log_endgame_to_file(player_name, time, landed)
                         # Формируем сообщение для другого игрока
-                        print(1)
                         endgame_message = f"endgame:{player_name}:{time}:{landed}"
-                        print(2)
                         # Отправляем это сообщение другому клиенту в лобби
                         send_endgame_message(lobby_name, endgame_message, client_socket)
                     elif request.startswith("theend:"):
@@ -113,7 +117,7 @@ def handle_client(client_socket, address):
             send_data(client_socket, "full.")
 
     except Exception as e:
-        print(f"Ошибка: {e}")
+        return
     finally:
         if lobby_name:
             clean_up_client(client_socket, lobby_name, color)
@@ -135,6 +139,7 @@ def clean_up_client(client_socket, lobby_name, color):
     with lobby_locks[lobby_name]:
         if (client_socket, color) in lobbies[lobby_name]:  # проверка с учетом цвета
             lobbies[lobby_name].remove((client_socket, color))
+            lobby_button_presses[lobby_name] = 0
             print(f"[DEBUG] Клиент {client_socket} удален из {lobby_name}.")
     
     broadcast_lobby_state(lobby_name)
@@ -156,17 +161,24 @@ def broadcast_game_update(request, lobby_name, sender_socket):
                     clients.remove((client, color))
 
 def send_lobby_status(client_socket, lobby_name):
-    """Отправляет статус лобби клиенту."""
+    """Отправляет статус лобби и кнопку одним кортежем."""
     with lobby_locks[lobby_name]:
-        clients = lobbies[lobby_name]
-        num_clients = len(clients)
+        num_clients = len(lobbies[lobby_name])
+        button_presses = lobby_button_presses[lobby_name]
 
+    # Определяем статус лобби
     if num_clients == 2:
-        send_data(client_socket, "2")  # Зеленый индикатор
+        status = "2"  # Зеленый индикатор
     elif num_clients == 1:
-        send_data(client_socket, "1")  # Желтый индикатор
+        status = "1"  # Желтый индикатор
     else:
-        send_data(client_socket, "0")  # Красный индикатор
+        status = "0"  # Красный индикатор
+
+    # Определяем статус кнопки
+    button_status = "All" if button_presses >= 2 else "0"
+
+    # Отправляем кортеж
+    send_data(client_socket, f"{status},{button_status}")
         
 def broadcast_lobby_state(lobby_name):
     """Уведомляет всех игроков в лобби о текущем количестве игроков."""
