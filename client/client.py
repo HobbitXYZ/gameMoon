@@ -88,19 +88,21 @@ class GameWindow(QWidget):
             self.is_game_over = True  # Блокируем управление
             self.player_angles[self.current_color] = 0
             landing_time = self.landing_timer.elapsed() / 1000
+            self.player_time = landing_time
             print(self.player_angles[self.current_color])
             print("Ракета успешно приземлилась")  # Вывод в терминал
-            print(f"Время приземления: {landing_time:.2f} секунд")
+            print(f"Время приземления: {landing_time:.3f} секунд")
 
             # Отправляем серверу информацию о завершении игры
-            send_data(self.client_socket, f"endgame:{self.player_name},{landing_time:.2f}")
+            send_data(self.client_socket, f"endgame:{self.player_name}:{landing_time:.3f}:{str(self.landed)}")
+            print(f"Отправка серверу 1: endgame:{self.player_name}:{landing_time:.3f}:{str(self.landed)}")  # Проверка формата перед отправкой
 
             # Проверяем завершение игры
             self.check_end()
             
             return  # Завершаем функцию
 
-        # Размеры ракеты
+        # Размеры ракет:
         rocket_width = 20
         rocket_height = 40
 
@@ -130,21 +132,26 @@ class GameWindow(QWidget):
             # Проверка на столкновение с левой и правой границей
             if px <= 4 or px >= self.FIELD_WIDTH - 4 or (self.FIELD_WIDTH // 2 - 2) <= px <= (self.FIELD_WIDTH // 2 + 2):
                 self.crashed = True
+                self.landed = False
             # Проверка на столкновение с верхней границей
             elif py <= 4:
                 self.crashed = True
+                self.landed = False
             # Проверка на столкновение с нижней границей (если не на платформе)
             elif py >= self.FIELD_HEIGHT - 15 and not (self.FIELD_HEIGHT - 10 <= py <= self.FIELD_HEIGHT):
                 self.crashed = True
+                self.landed = False
 
             if self.crashed:
                 self.is_game_over = True  # Блокируем управление
                 self.player_angles[self.current_color] = 180
                 crash_time = self.landing_timer.elapsed() / 1000
                 print("Ракета разбилась")  # Вывод в терминал
-                print(f"Время катастрофы: {crash_time:.2f} секунд")
+                print(f"Время катастрофы: {crash_time:.3f} секунд")
+                self.player_time = crash_time
                 # Отправляем серверу информацию о завершении игры
-                send_data(self.client_socket, f"endgame:{self.player_name},{crash_time:.2f}")
+                send_data(self.client_socket, f"endgame:{self.player_name}:{crash_time:.3f}:{str(self.landed)}")
+                print(f"Отправка серверу 2: endgame:{self.player_name}:{crash_time:.3f}:{str(self.landed)}")
 
                 # Проверяем завершение игры
                 self.check_end()
@@ -160,21 +167,22 @@ class GameWindow(QWidget):
                 message = request[len("endgame:"):]
 
                 # Разделяем на цвет и время
-                other_player_name, other_player_time = message.split(",")
+                other_player_name, other_player_time, other_landed = message.split(":")
 
                 # Сохраняем имя и время другого игрока
                 self.other_player_name = other_player_name
                 self.other_player_time = other_player_time
-
+                self.other_landed = other_landed
+                print("Проверяем конец игры")
                 # Если оба игрока отправили время, игра завершена
                 if self.player_time is not None and self.other_player_time is not None:
-                    self.end_game(self)
+                    self.end_game()
         except Exception as e:
             print(f"Ошибка при получении сообщения о завершении игры: {e}")
                            
     def end_game(self):
         """Завершаем игру, когда оба игрока отправили свои времена."""
-        self.game_over_message = f"Игра завершена! \nВремя {self.player_name}: {self.player_time}, Время {self.other_player_name}: {self.other_player_time}"
+        self.game_over_message = f"Игра завершена! \nВремя {self.player_name}: {self.player_time}, Посадка {self.landed}, Время {self.other_player_name}: {self.other_player_time} Посадка {self.other_landed}"
 
         # Можно отобразить сообщение на экране (например, через QLabel или QGraphicsTextItem)
         self.display_endgame_message(self.game_over_message)
@@ -213,7 +221,7 @@ class GameWindow(QWidget):
 
     def set_player_time(self, time):
         """Устанавливаем время для текущего игрока."""
-        self.player_time = time
+        self.player_time = round(time, 3)
             
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш."""
@@ -308,10 +316,8 @@ class GameWindow(QWidget):
         try:
             if self.is_game_over:
                 # Если игра завершена, отправляем endgame: с временем приземления
-                if self.player_time is None:  # Фиксируем время только один раз
-                    self.player_time = self.landing_timer.elapsed() / 1000  # Время в секундах
-                
-                send_data(self.client_socket, f"endgame:{self.player_name},{self.player_time}")
+                send_data(self.client_socket, f"endgame:{self.player_name}:{self.player_time:.3f}:{str(self.landed)}")
+                #print(f"Отправка серверу 3: endgame:{self.player_name}:{self.player_time:.3f}:{str(self.landed)}")
             else:
                 # Если игра не завершена, отправляем обычное движение
                 send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}")
@@ -339,10 +345,11 @@ class GameWindow(QWidget):
                 message = message[len("endgame:"):]
 
                 # Разделяем на цвет и время
-                other_player_name, other_player_time = message.split(",")
+                other_player_name, other_player_time, other_landed = message.split(":")
                 self.other_player_name = other_player_name
                 # Сохраняем время другого игрока
                 self.other_player_time = other_player_time
+                self.other_landed  = other_landed
                 # Если оба игрока отправили время, игра завершена
                 if self.player_time is not None and self.other_player_time is not None:
                     self.end_game()

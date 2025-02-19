@@ -8,28 +8,29 @@ from utils import send_data, receive_data
 lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
 
-def log_endgame_to_file(player_name, time):
+def log_endgame_to_file(player_name, time, landed):
     """Записывает имя игрока и время в файл, если таких данных нет."""
     log_file = "endgame_log.txt"
-    
-    # Проверяем, существует ли файл
-    file_exists = os.path.exists(log_file)
-    
-    # Если файл существует, читаем его содержимое
-    if file_exists:
-        with open(log_file, "r") as f:
-            existing_logs = f.readlines()
-        
-        # Проверяем, есть ли уже такая запись
-        for log in existing_logs:
-            existing_player_name, existing_time = log.strip().split(", ")
-            if existing_player_name == player_name and existing_time == time:
-                return  # Если запись найдена, выходим из функции
 
-    # Записываем новые данные в файл
+    # Приводим всё к строкам для корректного сравнения
+    time = str(time)
+    landed = str(landed)
+
+    # Проверяем, существует ли файл
+    if os.path.exists(log_file):
+        with open(log_file, "r") as f:
+            existing_logs = set(line.strip() for line in f)  # Читаем строки и убираем пробелы
+
+        # Формируем новую запись
+        new_entry = f"{player_name},{time},{landed}"
+
+        # Если такая запись уже есть — выходим
+        if new_entry in existing_logs:
+            return  
+
+    # Записываем новую строку
     with open(log_file, "a") as f:
-        f.write(f"{player_name}, {time}\n")
-    print(f"Данные о завершении игры: {player_name}, {time} записаны в файл.")
+        f.write(f"{player_name},{time},{landed}\n")
 
 def handle_client(client_socket, address):
     """Обрабатывает подключение клиента."""
@@ -90,11 +91,13 @@ def handle_client(client_socket, address):
                         broadcast_game_update(request, lobby_name, client_socket)
                     elif request.startswith("endgame:"):
                         # Извлекаем имя игрока и время из запроса
-                        player_name, time = request[len("endgame:"):].split(",")
+                        player_name, time, landed = request[len("endgame:"):].split(":")
                         # Логируем информацию в файл
-                        log_endgame_to_file(player_name, time)
+                        log_endgame_to_file(player_name, time, landed)
                         # Формируем сообщение для другого игрока
-                        endgame_message = f"endgame:{player_name},{time}"
+                        print(1)
+                        endgame_message = f"endgame:{player_name}:{time}:{landed}"
+                        print(2)
                         # Отправляем это сообщение другому клиенту в лобби
                         send_endgame_message(lobby_name, endgame_message, client_socket)
                     elif request.startswith("theend:"):
