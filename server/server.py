@@ -10,7 +10,7 @@ lobbies = {f"Lobby {i}": [] for i in range(1, 7)}
 lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
 lobby_button_presses = defaultdict(int)  # Хранит клиентов, нажавших кнопку в каждом лобби
 
-platform_start = random.randint(4, 330)
+platform_start = random.randint(4, 350)
 platform_end = platform_start + 55
 
 def log_endgame_to_file(player_name, time, landed):
@@ -131,14 +131,32 @@ def send_endgame_message(lobby_name, message, sender_socket):
 
 def clean_up_client(client_socket, lobby_name, color):
     """Очистка состояния клиента и лобби."""
+    global platform_start, platform_end  # Указываем, что используем глобальные переменные
+
     with lobby_locks[lobby_name]:
         if (client_socket, color) in lobbies[lobby_name]:  # проверка с учетом цвета
             lobbies[lobby_name].remove((client_socket, color))
             lobby_button_presses[lobby_name] = 0
+            reset_lobbies()
             print(f"[DEBUG] Клиент {client_socket} удален из {lobby_name}.")
     
     broadcast_lobby_state(lobby_name)
     client_socket.close()
+
+def reset_lobbies():
+    """Полностью очищает все лобби и генерирует новые координаты платформ."""
+    global platform_start, platform_end
+
+    with threading.Lock():  # Защищаем общий доступ к данным
+        for lobby_name in lobbies:
+            lobbies[lobby_name].clear()  # Очищаем список клиентов
+            lobby_button_presses[lobby_name] = 0  # Сбрасываем кнопки
+
+        # Генерируем новые координаты платформ
+        platform_start = random.randint(4, 350)
+        platform_end = platform_start + 55
+
+        print("[DEBUG] Все лобби очищены, платформы обновлены.")
 
 def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""
