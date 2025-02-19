@@ -78,13 +78,14 @@ class GameWindow(QWidget):
                 platform_start <= right_foot[0] <= platform_end and
                 self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
                 self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT 
-                and abs(angle) < 20):
+                and abs(angle) < 60):
 
             self.landed = True
             self.is_game_over = True  # Блокируем управление
             self.player_angles[self.current_color] = 0
             print(self.player_angles[self.current_color])
             print("Ракета успешно приземлилась")  # Вывод в терминал
+            print(f"Время приземления: {self.landing_timer.elapsed() / 1000:.2f} секунд")
             return  # Завершаем функцию
 
         # Размеры ракеты
