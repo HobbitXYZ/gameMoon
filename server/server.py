@@ -11,7 +11,7 @@ lobby_locks = {lobby_name: threading.Lock() for lobby_name in lobbies}
 lobby_button_presses = defaultdict(int)  # Хранит клиентов, нажавших кнопку в каждом лобби
 
 platform_start = random.randint(4, 350)
-platform_end = platform_start + 55
+platform_end = platform_start + 60
 
 def log_endgame_to_file(player_name, time, landed):
     """Записывает имя игрока и время в файл, если таких данных нет."""

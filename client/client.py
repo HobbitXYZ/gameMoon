@@ -82,12 +82,12 @@ class GameWindow(QWidget):
         left_foot = (x, y)
         right_foot = (x + 20, y)
 
-        # Проверка успешного приземления (обе ноги на платформе и угол < 5°)
+        # Проверка успешного приземления (обе ноги на платформе и угол < 25°)
         if (platform_start <= left_foot[0] <= platform_end and
                 platform_start <= right_foot[0] <= platform_end and
                 self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
                 self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT 
-                and abs(angle) < 25 and self.player_fuel[self.current_color] <= 3):
+                and abs(angle) <= 25 and self.player_velocity_y[self.current_color] <= 3):
 
             self.landed = True
             self.is_game_over = True  # Блокируем управление
@@ -279,16 +279,16 @@ class GameWindow(QWidget):
         if self.pressed_keys["A"] and self.pressed_keys["D"]:
             # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
             self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
-            self.player_velocity_y[self.current_color] = math.cos(angle_rad) * -2  # Вертикальное движение вверх, против гравитации
+            self.player_velocity_y[self.current_color] = math.cos(angle_rad) * -1.5  # Вертикальное движение вверх, против гравитации
 
         # Обработка движения с помощью клавиш:
         if self.pressed_keys["A"] and not self.pressed_keys["D"]:
-            self.player_angles[self.current_color] -= 2.5  # Поворот по часовой стрелке
+            self.player_angles[self.current_color] -= 3  # Поворот по часовой стрелке
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] < -180:
                 self.player_angles[self.current_color] += 360  # Приводим к положительному углу
         elif self.pressed_keys["D"] and not self.pressed_keys["A"]:
-            self.player_angles[self.current_color] += 2.5  # Поворот против часовой стрелки
+            self.player_angles[self.current_color] += 3  # Поворот против часовой стрелки
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] > 180:
                 self.player_angles[self.current_color] -= 360  # Приводим к отрицательному углу
@@ -394,11 +394,14 @@ class GameWindow(QWidget):
         painter.drawRect(0, 0, 4, self.FIELD_HEIGHT)  # Левая
         painter.drawRect(self.FIELD_WIDTH - 4, 0, 4, self.FIELD_HEIGHT)  # Правая
 
+        painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:")
+        painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:")
+
         # Рисуем платформы с учетом координат для каждого игрока
         for color, (start_x, end_x) in self.platforms.items():
             painter.setBrush(QColor("purple"))  # Цвет платформы
             painter.drawRect(start_x, self.FIELD_HEIGHT - 20, end_x - start_x, 20)
-
+        
         # Рисуем ракеты для обоих игроков
         for color, (x, y) in self.player_positions.items():
             # Вершины ракеты (левая нижняя, правая нижняя, верхняя)
@@ -461,53 +464,27 @@ class GameWindow(QWidget):
             polygon = QPolygonF([QPointF(x, y) for x, y in rotated_points])
             painter.setBrush(QColor(color))  # Используем цвет игрока
             painter.drawPolygon(polygon)
-        # Отображаем угол текущего игрока и другого игрока
-        for color in self.player_positions.keys():
-            angle = self.player_angles[color]
-            angle_text = f"{angle:.2f}"
+
+            # **Закрепленный текст над ракетой (но не поворачивается)**
+            text_x = int(x + 35)  # Смещение текста вправо от ракеты
+            text_y = int(y - 60)  # Смещение текста выше ракеты
+
+            # Получаем значения угла, топлива и скорости
+            angle_text = f"{self.player_angles[color]:.2f}"
             fuel_text = self.player_fuel[color]
-            speed = self.player_velocity_y[color]
-            speed_text = f"{abs(speed):.2f}"
+            speed_text = f"{abs(self.player_velocity_y[color] + 7):.2f}"
 
-            painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:")
-            painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:")
-            # Выбор цвета для угла наклона
-            if -20 <= abs(angle) <= 20:
-                painter.setPen(QColor("green"))
-            else:
-                painter.setPen(QColor("black"))
+            # Угол: зелёный, если от -20 до 20
+            painter.setPen(QColor("green") if -25 <= self.player_angles[color] <= 25 else QColor("red"))
+            painter.drawText(text_x, text_y, f"{angle_text}°")
 
-            # Расположение текста справа от ракеты
-            if color == "blue":
-                # Отображаем угол для текущего игрока
-                painter.drawText(self.FIELD_WIDTH - 490, 40, f"ANGEL:{angle_text}")
+            # Топливо: красное, если меньше 20
+            painter.setPen(QColor("red") if fuel_text < 20 else QColor("black"))
+            painter.drawText(text_x, text_y + 40, f"{fuel_text} м³")
 
-                # Выбор цвета для топлива
-                if fuel_text < 20:
-                    painter.setPen(QColor("green"))
-                else:
-                    painter.setPen(QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 490, 80, f"FUEL:{fuel_text}")
-
-                # Выбор цвета для скорости
-                if speed < 3:
-                    painter.setPen(QColor("green"))
-                else:
-                    painter.setPen(QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 490, 60, f"SPEED:{speed_text}")
-
-            else:
-                # Отображаем угол для другого игрока
-                painter.setPen(QColor("green") if -20 <= abs(angle) <= 20 else QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 140, 40, f"ANGEL:{angle_text}")
-
-                # Выбор цвета для топлива
-                painter.setPen(QColor("red") if fuel_text < 20 else QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 140, 80, f"FUEL:{fuel_text}")
-
-                # Выбор цвета для скорости
-                painter.setPen(QColor("green") if speed < 3 else QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 140, 60, f"SPEED:{speed_text}")
+            # Скорость: зеленая, если меньше 3
+            painter.setPen(QColor("green") if abs(self.player_velocity_y[color]) <= 3 else QColor("red"))
+            painter.drawText(text_x, text_y + 20, f"{speed_text} km/h")
 
 
 class LobbyWindow(QWidget):
