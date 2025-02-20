@@ -183,7 +183,7 @@ def send_lobby_status(client_socket, lobby_name):
     if num_clients == 2:
         status = "2"  # Зеленый индикатор
     elif num_clients == 1:
-        status = "1"  # Желтый индикатор
+        status = "2"  # Желтый индикатор
     else:
         status = "0"  # Красный индикатор
 

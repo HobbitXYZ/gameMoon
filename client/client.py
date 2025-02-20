@@ -41,6 +41,7 @@ class GameWindow(QWidget):
         self.velocity_x = 0
         self.velocity_y = 0
         self.player_angles = {"blue": 1,"red": 1}
+        self.player_fuel = {"blue": 100,"red": 100}
         # Гравитация ТУТ
         self.gravity = 0.07
 
@@ -228,7 +229,7 @@ class GameWindow(QWidget):
             
     def keyPressEvent(self, event):
         """Обработка нажатий клавиш."""
-        if self.is_game_over:  # Если игра завершена, игнорируем нажатия
+        if self.is_game_over or self.player_fuel[self.current_color] <= 0:  # Если игра окончена или нет топлива, блокируем управление
             return
         key = event.text().upper()  # Получаем нажатую клавишу в верхнем регистре
         if key == 'A':
@@ -238,7 +239,7 @@ class GameWindow(QWidget):
 
     def keyReleaseEvent(self, event):
         """Обработка отпускания клавиш."""
-        if self.is_game_over:  # Если игра завершена, игнорируем нажатия
+        if self.is_game_over or self.player_fuel[self.current_color] <= 0:  # Если игра окончена или нет топлива, блокируем управление
             return
         key = event.text().upper()  # Получаем отпущенную клавишу в верхнем регистре
         if key == 'A':
@@ -259,6 +260,14 @@ class GameWindow(QWidget):
             self.velocity_y = 10
             self.velocity_y += self.gravity # Гравитация всегда действует
             #print(self.velocity_y)
+        
+        if self.pressed_keys["A"] or self.pressed_keys["D"]:
+            if self.player_fuel[self.current_color] > 0:
+                self.player_fuel[self.current_color] -= 0.5  # Уменьшаем топливо при использовании двигателя
+
+        if self.player_fuel[self.current_color] <= 0:
+            self.pressed_keys["A"] = False
+            self.pressed_keys["D"] = False  # Блокируем движение, если топливо закончилось
 
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
@@ -323,7 +332,7 @@ class GameWindow(QWidget):
                 #print(f"Отправка серверу 3: endgame:{self.player_name}:{self.player_time:.3f}:{str(self.landed)}")
             else:
                 # Если игра не завершена, отправляем обычное движение
-                send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}")
+                send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}:{self.player_fuel[self.current_color]}")
         except Exception:
             self.close()
 
@@ -332,16 +341,17 @@ class GameWindow(QWidget):
         self.update()      
 
     def receive_data_from_server(self):
-        """Получение позиций игроков от сервера и отправка своей позиции ракеты."""
+        """Получение позиций игроков от сервера."""
         try:
             message = receive_data(self.client_socket)
             if message.startswith("move:"):
                 parts = message.split(":")
-                if len(parts) == 5:  # move:цвет:x:y:угол
-                    color, x, y, angle = parts[1], float(parts[2]), float(parts[3]), float(parts[4])
+                if len(parts) == 6:  # move:цвет:x:y:угол:топливо
+                    color, x, y, angle, fuel = parts[1], float(parts[2]), float(parts[3]), float(parts[4]), float(parts[5])
                     self.player_positions[color] = [x, y]  # Обновляем позицию другого игрока
                     self.player_angles[color] = angle  # Обновляем угол наклона
-                    self.update()
+                    self.player_fuel[color] = fuel  # Обновляем запас топлива другого игрока
+                    self.update(fuel)
 
             if message.startswith("endgame:"):
                 # Извлекаем информацию: цвет и время другого игрока
@@ -361,23 +371,6 @@ class GameWindow(QWidget):
         except Exception as e:
             return
         
-    def send_position_to_server(self):
-        """Отправка своей позиции ракеты на сервер."""
-        try:
-            # Получаем текущие координаты ракеты из player_positions
-            new_x, new_y = self.player_positions[self.current_color]  # Теперь используем этот атрибут
-            angle = self.player_angles[self.current_color]  # Получаем угол наклона ракеты
-            
-            # Формируем сообщение для отправки
-            message = f"move:{self.current_color}:{new_x}:{new_y}:{angle}"
-            
-            # Отправляем данные серверу
-            send_data(self.client_socket, message)
-            
-        except Exception as e:
-            print(f"Ошибка отправки данных: {e}")
-            self.close()
-
     def paintEvent(self, event):
         """Отрисовка игроков и границ."""
         painter = QPainter(self)
@@ -470,6 +463,7 @@ class GameWindow(QWidget):
         for color in self.player_positions.keys():
             angle = self.player_angles[color]
             angle_text = f"{angle:.2f}"
+            fuel_text = self.player_fuel[color]
 
             # Выбор цвета текста
             if -20 <= abs(angle) <= 20:
@@ -481,9 +475,13 @@ class GameWindow(QWidget):
             if color == "blue":
                 # Отображаем угол для текущего игрока
                 painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:{angle_text}")
+                painter.setPen(QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 490, 40, f"FUEL:{fuel_text}")
             else:
                 # Отображаем угол для другого игрока
                 painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:{angle_text}")
+                painter.setPen(QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 140, 40, f"FUEL:{fuel_text}")
 
 
 class LobbyWindow(QWidget):
@@ -600,7 +598,6 @@ class LobbyWindow(QWidget):
 
             # Отправляем запрос и принимаем ответ в виде кортежа
             send_data(self.client_socket, "status")
-            print("Отправка запроса статуса лобби: status")
             response = receive_data(self.client_socket)
             
             # Разбираем кортеж (status, button_status)
