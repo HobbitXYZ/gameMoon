@@ -39,11 +39,12 @@ class GameWindow(QWidget):
         # Управление текущего игрока
         self.current_color = player_color
         self.velocity_x = 0
-        self.velocity_y = 0
+
         self.player_angles = {"blue": 1,"red": 1}
-        self.player_fuel = {"blue": 100,"red": 100}
+        self.player_fuel = {"blue": 110,"red": 110}
+        self.player_velocity_y = {"blue": 0,"red": 0}
         # Гравитация ТУТ
-        self.gravity = 0.07
+        self.gravity = 0.025
 
         # Таймер обновления игры
         self.timer = QTimer()
@@ -86,7 +87,7 @@ class GameWindow(QWidget):
                 platform_start <= right_foot[0] <= platform_end and
                 self.FIELD_HEIGHT - 20 <= left_foot[1] <= self.FIELD_HEIGHT and
                 self.FIELD_HEIGHT - 20 <= right_foot[1] <= self.FIELD_HEIGHT 
-                and abs(angle) < 60):
+                and abs(angle) < 25 and self.player_fuel[self.current_color] <= 3):
 
             self.landed = True
             self.is_game_over = True  # Блокируем управление
@@ -253,12 +254,12 @@ class GameWindow(QWidget):
         angle_rad = math.radians(self.player_angles[self.current_color])
 
         if self.crashed == False:
-            self.velocity_y += self.gravity # Гравитация всегда действует
+            self.player_velocity_y[self.current_color] += self.gravity # Гравитация всегда действует
             #print(self.velocity_y)
         else:
             #print(self.velocity_y)
-            self.velocity_y = 10
-            self.velocity_y += self.gravity # Гравитация всегда действует
+            self.player_velocity_y[self.current_color] = 10
+            self.player_velocity_y[self.current_color] += self.gravity # Гравитация всегда действует
             #print(self.velocity_y)
         
         if self.pressed_keys["A"] or self.pressed_keys["D"]:
@@ -272,22 +273,22 @@ class GameWindow(QWidget):
         # Если никаких кнопок не нажато, ракета падает под действием гравитации
         if not self.pressed_keys["A"] and not self.pressed_keys["D"]:
             self.velocity_x = 0  # Нет горизонтального движения
-            self.velocity_y += self.gravity  # Ракета падает под действием гравитации
+            self.player_velocity_y[self.current_color] += self.gravity  # Ракета падает под действием гравитации
 
         # Двигатели ракеты не дают гравитации полностью направлять её вниз
         if self.pressed_keys["A"] and self.pressed_keys["D"]:
             # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
             self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
-            self.velocity_y = math.cos(angle_rad) * -2  # Вертикальное движение вверх, против гравитации
+            self.player_velocity_y[self.current_color] = math.cos(angle_rad) * -2  # Вертикальное движение вверх, против гравитации
 
         # Обработка движения с помощью клавиш:
         if self.pressed_keys["A"] and not self.pressed_keys["D"]:
-            self.player_angles[self.current_color] -= 3  # Поворот по часовой стрелке
+            self.player_angles[self.current_color] -= 2.5  # Поворот по часовой стрелке
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] < -180:
                 self.player_angles[self.current_color] += 360  # Приводим к положительному углу
         elif self.pressed_keys["D"] and not self.pressed_keys["A"]:
-            self.player_angles[self.current_color] += 3  # Поворот против часовой стрелки
+            self.player_angles[self.current_color] += 2.5  # Поворот против часовой стрелки
             # Нормализация угла, чтобы он не выходил за пределы -180 до 180
             if self.player_angles[self.current_color] > 180:
                 self.player_angles[self.current_color] -= 360  # Приводим к отрицательному углу
@@ -295,20 +296,20 @@ class GameWindow(QWidget):
             # Рассчитываем новый угол наклона ракеты на основе её движения
             if abs(self.player_angles[self.current_color]) < 90:
                 if self.player_angles[self.current_color] < 0:
-                    self.player_angles[self.current_color] -= 1  # Поворот по часовой стрелке
+                    self.player_angles[self.current_color] -= 0.5  # Поворот по часовой стрелке
                 elif self.player_angles[self.current_color] > 0:
-                    self.player_angles[self.current_color] += 1  # Поворот против часовой стрелки
+                    self.player_angles[self.current_color] += 0.5  # Поворот против часовой стрелки
             elif abs(self.player_angles[self.current_color]) >= 90 and abs(self.player_angles[self.current_color]) < 180:
                 if self.player_angles[self.current_color] < 0:
-                    self.player_angles[self.current_color] -= 1  # Поворот против часовой стрелки
+                    self.player_angles[self.current_color] -= 0.5  # Поворот против часовой стрелки
                 elif self.player_angles[self.current_color] > 0:
-                    self.player_angles[self.current_color] += 1  # Поворот по часовой стрелке
+                    self.player_angles[self.current_color] += 0.5  # Поворот по часовой стрелке
             else:
                 self.player_angles[self.current_color] = 180
 
         # Вычисляем новые координаты ракеты
         new_x = self.player_positions[self.current_color][0] + self.velocity_x
-        new_y = self.player_positions[self.current_color][1] + self.velocity_y
+        new_y = self.player_positions[self.current_color][1] + self.player_velocity_y[self.current_color]
 
         # Ограничение по вертикальной границе
         middle_x = self.FIELD_WIDTH // 2
@@ -332,7 +333,7 @@ class GameWindow(QWidget):
                 #print(f"Отправка серверу 3: endgame:{self.player_name}:{self.player_time:.3f}:{str(self.landed)}")
             else:
                 # Если игра не завершена, отправляем обычное движение
-                send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}:{self.player_fuel[self.current_color]}")
+                send_data(self.client_socket, f"move:{self.current_color}:{new_x}:{new_y}:{self.player_angles[self.current_color]}:{self.player_fuel[self.current_color]}:{self.player_velocity_y[self.current_color]}")
         except Exception:
             self.close()
 
@@ -346,12 +347,13 @@ class GameWindow(QWidget):
             message = receive_data(self.client_socket)
             if message.startswith("move:"):
                 parts = message.split(":")
-                if len(parts) == 6:  # move:цвет:x:y:угол:топливо
-                    color, x, y, angle, fuel = parts[1], float(parts[2]), float(parts[3]), float(parts[4]), float(parts[5])
+                if len(parts) == 7:  # move:цвет:x:y:угол:топливо:скорость
+                    color, x, y, angle, fuel, velocity_y = parts[1], float(parts[2]), float(parts[3]), float(parts[4]), float(parts[5]), float(parts[6])
                     self.player_positions[color] = [x, y]  # Обновляем позицию другого игрока
                     self.player_angles[color] = angle  # Обновляем угол наклона
                     self.player_fuel[color] = fuel  # Обновляем запас топлива другого игрока
-                    self.update(fuel)
+                    self.player_velocity_y[color] = velocity_y
+                    self.update(fuel, velocity_y)
 
             if message.startswith("endgame:"):
                 # Извлекаем информацию: цвет и время другого игрока
@@ -464,8 +466,12 @@ class GameWindow(QWidget):
             angle = self.player_angles[color]
             angle_text = f"{angle:.2f}"
             fuel_text = self.player_fuel[color]
+            speed = self.player_velocity_y[color]
+            speed_text = f"{abs(speed):.2f}"
 
-            # Выбор цвета текста
+            painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:")
+            painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:")
+            # Выбор цвета для угла наклона
             if -20 <= abs(angle) <= 20:
                 painter.setPen(QColor("green"))
             else:
@@ -474,14 +480,34 @@ class GameWindow(QWidget):
             # Расположение текста справа от ракеты
             if color == "blue":
                 # Отображаем угол для текущего игрока
-                painter.drawText(self.FIELD_WIDTH - 490, 20, f"NASA:{angle_text}")
-                painter.setPen(QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 490, 40, f"FUEL:{fuel_text}")
+                painter.drawText(self.FIELD_WIDTH - 490, 40, f"ANGEL:{angle_text}")
+
+                # Выбор цвета для топлива
+                if fuel_text < 20:
+                    painter.setPen(QColor("green"))
+                else:
+                    painter.setPen(QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 490, 80, f"FUEL:{fuel_text}")
+
+                # Выбор цвета для скорости
+                if speed < 3:
+                    painter.setPen(QColor("green"))
+                else:
+                    painter.setPen(QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 490, 60, f"SPEED:{speed_text}")
+
             else:
                 # Отображаем угол для другого игрока
-                painter.drawText(self.FIELD_WIDTH - 140, 20, f"ROSCOSMOS:{angle_text}")
-                painter.setPen(QColor("black"))
-                painter.drawText(self.FIELD_WIDTH - 140, 40, f"FUEL:{fuel_text}")
+                painter.setPen(QColor("green") if -20 <= abs(angle) <= 20 else QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 140, 40, f"ANGEL:{angle_text}")
+
+                # Выбор цвета для топлива
+                painter.setPen(QColor("red") if fuel_text < 20 else QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 140, 80, f"FUEL:{fuel_text}")
+
+                # Выбор цвета для скорости
+                painter.setPen(QColor("green") if speed < 3 else QColor("black"))
+                painter.drawText(self.FIELD_WIDTH - 140, 60, f"SPEED:{speed_text}")
 
 
 class LobbyWindow(QWidget):
