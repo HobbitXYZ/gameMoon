@@ -280,8 +280,8 @@ class GameWindow(QWidget):
         # Двигатели ракеты не дают гравитации полностью направлять её вниз
         if self.pressed_keys["A"] and self.pressed_keys["D"]:
             # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
-            self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
-            self.player_velocity_y[self.current_color] = math.cos(angle_rad) * -1.5  # Вертикальное движение вверх, против гравитации
+            self.velocity_x = math.sin(angle_rad) * 3  # Горизонтальное движение по направлению носа
+            self.player_velocity_y[self.current_color] += math.cos(angle_rad) * -0.35  # Вертикальное движение вверх, против гравитации
 
         # Обработка движения с помощью клавиш:
         if self.pressed_keys["A"] and not self.pressed_keys["D"]:
@@ -471,7 +471,7 @@ class GameWindow(QWidget):
             # Получаем значения угла, топлива и скорости
             angle_text = f"{self.player_angles[color]:.2f}"
             fuel_text = self.player_fuel[color]
-            speed_text = f"{abs(self.player_velocity_y[color] + 7):.2f}"
+            speed_text = f"{abs(self.player_velocity_y[color]) * 3.333:.2f}"
 
             # Угол: зелёный, если от -20 до 20
             painter.setPen(QColor("green") if -25 <= self.player_angles[color] <= 25 else QColor("red"))
@@ -668,6 +668,7 @@ class SpaceLanderClient(QWidget):
 
     def connect_solo_game_button(self):
         """Открывает соло игру."""
+        self.hide()
         self.solo_game_window = SoloGameWindow("blue", "SoloGame")
         self.solo_game_window.show()
 
@@ -1005,8 +1006,8 @@ class SoloGameWindow(QWidget):
         # Двигатели ракеты не дают гравитации полностью направлять её вниз
         if self.pressed_keys["A"] and self.pressed_keys["D"]:
             # Когда обе клавиши нажаты, ракета будет двигаться вверх по направлению носа
-            self.velocity_x = math.sin(angle_rad) * 2  # Горизонтальное движение по направлению носа
-            self.player_velocity_y[self.current_color] = math.cos(angle_rad) * -1.5  # Вертикальное движение вверх, против гравитации
+            self.velocity_x = math.sin(angle_rad) * 3  # Горизонтальное движение по направлению носа
+            self.player_velocity_y[self.current_color] += math.cos(angle_rad) * -0.35  # Вертикальное движение вверх, против гравитации
 
         # Обработка движения с помощью клавиш:
         if self.pressed_keys["A"] and not self.pressed_keys["D"]:
@@ -1189,7 +1190,7 @@ class SoloGameWindow(QWidget):
             # Получаем значения угла, топлива и скорости
             angle_text = f"{self.player_angles[color]:.2f}"
             fuel_text = self.player_fuel[color]
-            speed_text = f"{abs(self.player_velocity_y[color] + 7):.2f}"
+            speed_text = f"{abs(self.player_velocity_y[color]) * 3.333:.2f}"
 
             # Угол: зелёный, если от -20 до 20
             painter.setPen(QColor("green") if -25 <= self.player_angles[color] <= 25 else QColor("red"))
