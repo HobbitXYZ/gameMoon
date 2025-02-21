@@ -9,7 +9,6 @@ from PyQt6.QtGui import QBrush
 from PyQt6.QtGui import QPen
 from PyQt6.QtCore import QElapsedTimer
 from utils import send_data, receive_data
-from dd import SoloGameWindow
 
 class GameWindow(QWidget):
     FIELD_WIDTH = 800
@@ -464,43 +463,6 @@ class GameWindow(QWidget):
             polygon = QPolygonF([QPointF(x, y) for x, y in rotated_points])
             painter.setBrush(QColor(color))  # Используем цвет игрока
             painter.drawPolygon(polygon)
-
-            # Координаты пламени относительно ракеты (без поворота)
-            flame_left = [
-                (x - 2, y + 7),  # Верхняя левая
-                (x + 2, y + 7),  # Верхняя правая
-                (x + 2, y + 25),  # Нижняя правая
-                (x - 2, y + 25)   # Нижняя левая
-            ]
-
-            flame_right = [
-                (x + 18, y + 7),  # Верхняя левая
-                (x + 22, y + 7),  # Верхняя правая
-                (x + 22, y + 25),  # Нижняя правая
-                (x + 18, y + 25)   # Нижняя левая
-            ]
-
-            # Поворот пламени
-            rotated_flame_left = []
-            rotated_flame_right = []
-
-            for flame in [flame_left, flame_right]:
-                rotated_flame = []
-                for px, py in flame:
-                    rotated_x = center_x + (px - center_x) * math.cos(angle_rad) - (py - center_y) * math.sin(angle_rad)
-                    rotated_y = center_y + (px - center_x) * math.sin(angle_rad) + (py - center_y) * math.cos(angle_rad)
-                    rotated_flame.append(QPointF(rotated_x, rotated_y))
-                if flame == flame_left:
-                    rotated_flame_left = rotated_flame
-                else:
-                    rotated_flame_right = rotated_flame
-
-            # Отрисовка пламени, если кнопки нажаты
-            painter.setBrush(QBrush(QColor(255, 140, 0)))  # Огненно-оранжевый цвет
-            if self.pressed_keys["A"]:
-                painter.drawPolygon(QPolygonF(rotated_flame_right))
-            if self.pressed_keys["D"]:
-                painter.drawPolygon(QPolygonF(rotated_flame_left))
 
             # **Закрепленный текст над ракетой (но не поворачивается)**
             text_x = int(x + 35)  # Смещение текста вправо от ракеты
