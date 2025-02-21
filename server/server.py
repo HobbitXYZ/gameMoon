@@ -141,22 +141,6 @@ def clean_up_client(client_socket, lobby_name, color):
     
     broadcast_lobby_state(lobby_name)
     client_socket.close()
-    reset_lobbies()
-
-def reset_lobbies():
-    """Полностью очищает все лобби и генерирует новые координаты платформ."""
-    global platform_start, platform_end
-
-    with threading.Lock():  # Защищаем общий доступ к данным
-        for lobby_name in lobbies:
-            lobbies[lobby_name].clear()  # Очищаем список клиентов
-            lobby_button_presses[lobby_name] = 0  # Сбрасываем кнопки
-
-        # Генерируем новые координаты платформ
-        platform_start = random.randint(4, 350)
-        platform_end = platform_start + 55
-
-        print("[DEBUG] Все лобби очищены, платформы обновлены.")
 
 def broadcast_game_update(request, lobby_name, sender_socket):
     """Рассылает обновление игры всем клиентам в лобби, кроме отправителя."""

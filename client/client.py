@@ -62,9 +62,7 @@ class GameWindow(QWidget):
         self.pressed_keys = {"A": False,"D": False}
         self.is_game_over = False  # Флаг завершения игры
 
-         # **Таймер посадки**
         self.landing_timer = QElapsedTimer()
-        self.landing_timer.start()
 
         self.landed = False  # Флаг успешной посадки
         self.crashed = False  # Флаг крушения
@@ -253,13 +251,16 @@ class GameWindow(QWidget):
         # Рассчитываем угол наклона ракеты в радианах
         angle_rad = math.radians(self.player_angles[self.current_color])
 
+        if self.player_velocity_y[self.current_color] > 0.01 and not self.landing_timer.isValid():
+            self.landing_timer.start()  
+
         if self.crashed == False:
             self.player_velocity_y[self.current_color] += self.gravity # Гравитация всегда действует
             #print(self.velocity_y)
         else:
             #print(self.velocity_y)
             self.player_velocity_y[self.current_color] = 10
-            self.player_velocity_y[self.current_color] += self.gravity # Гравитация всегда действует
+            self.gravity = 0
             #print(self.velocity_y)
         
         if self.pressed_keys["A"] or self.pressed_keys["D"]:
@@ -557,10 +558,11 @@ class LobbyWindow(QWidget):
         # Подключение обработчика изменения текста
         self.name_input.textChanged.connect(self.check_name_input)
 
-        # Статус подключения
-        self.status_label = QLabel("Ожидание...")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status_label)
+        # Кнопка назад (изначально неактивна)
+        self.return_to_client = QPushButton("Назад")
+        layout.addWidget(self.return_to_client)
+        # Подключаем назад нажатия кнопки
+        self.return_to_client.clicked.connect(self.on_return_to_client)
 
         self.setLayout(layout)
 
@@ -583,7 +585,13 @@ class LobbyWindow(QWidget):
             self.enter_lobby_button.setDisabled(True)
             self.enter_lobby_button.setStyleSheet("background-color: lightgray;")  # Снова делаем серой
             self.enter_lobby_button.setText("Войти в лобби")  # На случай очистки имени
-    
+    def on_return_to_client(self):
+        """Обрабатывает нажатие кнопки назад."""
+        self.close()
+        self.game_window = SpaceLanderClient()
+        self.game_window.show()
+        send_data(self.client_socket, "theend:")
+
     def on_lobby_button_click(self):
         """Обрабатывает нажатие кнопки входа в лобби."""
         if not self.button_pressed:
@@ -650,7 +658,6 @@ class LobbyWindow(QWidget):
 
             # Если оба игрока нажали кнопку и статус лобби 2 — начинаем игру
             if self.status == "2" and self.button_pressed and self.status_button == "All":
-                self.status_label.setText("Начало игры!")
                 self.timer.stop()
                 self.start_game(self.player_color, self.player_name)
 
